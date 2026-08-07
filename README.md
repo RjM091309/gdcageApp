@@ -1,6 +1,6 @@
-# Infinity Cage X Executive – Flutter
+# Golder Dragon Cage X Executive – Flutter
 
-Flutter version ng **Infinity Cage X Executive** dashboard (convert mula sa React/Vite app).
+Flutter version ng **Golder Dragon Cage X Executive** dashboard (convert mula sa React/Vite app).
 
 ## Setup
 
