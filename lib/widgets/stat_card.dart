@@ -62,7 +62,7 @@ class StatCard extends StatelessWidget {
         final padding = isCompact ? 8.0 : (isTabletSize ? 14.0 : 14.0);
         final spacing = isCompact ? 4.0 : 8.0;
         final valueFontSize = isCompact ? 12.0 : (centered ? 24.0 : 18.0);
-        final labelFontSize = isCompact ? 8.0 : (centered ? 13.0 : 9.0);
+        final labelFontSize = isCompact ? 8.0 : (centered ? 18.0 : 9.0);
         final iconBoxSize = isCompact ? 3.0 : (centered ? 10.0 : 6.0);
         final iconSize = isCompact ? 12.0 : (centered ? 24.0 : 16.0);
         return Container(
@@ -136,7 +136,7 @@ class StatCard extends StatelessWidget {
                     fontSize: labelFontSize,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 1.2,
-                    color: Colors.grey[400],
+                    color: centered ? Colors.white : Colors.grey[400],
                   ),
                   overflow: TextOverflow.ellipsis,
                   maxLines: centered ? 2 : 1,

@@ -146,10 +146,10 @@ class _RealTimeViewState extends State<RealTimeView> {
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Text(l10n.winLossLabel,
-                          style: TextStyle(
-                              fontSize: 15,
-                              color: Colors.grey[400],
-                              fontWeight: FontWeight.w600)),
+                          style: const TextStyle(
+                              fontSize: 20,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold)),
                       const SizedBox(height: 6),
                       _amountText(_summary?.winLoss,
                           fontSize: 24, color: Colors.white),
@@ -165,10 +165,10 @@ class _RealTimeViewState extends State<RealTimeView> {
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Text(l10n.ngrLabel,
-                          style: TextStyle(
-                              fontSize: 15,
-                              color: Colors.grey[400],
-                              fontWeight: FontWeight.w600)),
+                          style: const TextStyle(
+                              fontSize: 20,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold)),
                       const SizedBox(height: 6),
                       _amountText(_summary?.ngr,
                           fontSize: 24, color: Colors.white),
@@ -197,7 +197,6 @@ class _RealTimeViewState extends State<RealTimeView> {
       {required IconData icon,
       required Color color,
       required String label,
-      String? subLabel,
       required int? value}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 22),
@@ -221,16 +220,10 @@ class _RealTimeViewState extends State<RealTimeView> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(label,
-                  style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[400],
-                      fontWeight: FontWeight.w600)),
-              if (subLabel != null)
-                Text(subLabel,
-                    style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.grey[600],
-                        fontWeight: FontWeight.w500)),
+                  style: const TextStyle(
+                      fontSize: 16,
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold)),
               const SizedBox(height: 4),
               _amountText(value, fontSize: 19, color: Colors.white),
             ],
@@ -294,7 +287,6 @@ class _RealTimeViewState extends State<RealTimeView> {
             icon: Icons.shield,
             color: roseAccent,
             label: l10n.accumulatedExpenses,
-            subLabel: l10n.mtdExpenditure,
             value: _summary?.expenses),
         const SizedBox(height: 14),
         _wideStatCard(
