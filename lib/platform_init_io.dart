@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:workmanager/workmanager.dart';
 
 import 'background_notification_task.dart';
+import 'constants/feature_flags.dart';
 import 'services/local_notification_service.dart';
 
 bool get isAndroid => Platform.isAndroid;
@@ -20,6 +21,7 @@ Future<void> initAndroidIfNeeded() async {
       systemNavigationBarColor: Colors.transparent,
     ),
   );
+  if (!kNotificationsEnabled) return;
   await LocalNotificationService.instance.initialize();
   await Workmanager().initialize(callbackDispatcher);
   await Workmanager().registerPeriodicTask(
@@ -32,6 +34,7 @@ Future<void> initAndroidIfNeeded() async {
 
 /// Call when app goes to background so we check for notifications ~1 min later (Android).
 Future<void> scheduleOneOffNotificationCheck() async {
+  if (!kNotificationsEnabled) return;
   if (!Platform.isAndroid) return;
   await Workmanager().registerOneOffTask(
     'cage-notification-oneoff',

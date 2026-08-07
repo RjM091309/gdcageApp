@@ -101,7 +101,7 @@ abstract class AppLocalizations {
   /// No description provided for @appTitle.
   ///
   /// In en, this message translates to:
-  /// **'INF Cage'**
+  /// **'Golden Dragon'**
   String get appTitle;
 
   /// No description provided for @executive.
@@ -787,6 +787,180 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Receive notifications'**
   String get receiveNotifications;
+
+  /// No description provided for @statisticsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Statistics'**
+  String get statisticsLabel;
+
+  /// No description provided for @ngrLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'NGR'**
+  String get ngrLabel;
+
+  /// No description provided for @winLossLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Win/Loss'**
+  String get winLossLabel;
+
+  /// No description provided for @totalCommissionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Total Commission'**
+  String get totalCommissionLabel;
+
+  /// No description provided for @gameCommissionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Game Commission'**
+  String get gameCommissionLabel;
+
+  /// No description provided for @additionalCommissionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Additional Commission'**
+  String get additionalCommissionLabel;
+
+  /// No description provided for @expensesLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Expenses'**
+  String get expensesLabel;
+
+  /// No description provided for @cageRollingLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cage Rolling'**
+  String get cageRollingLabel;
+
+  /// No description provided for @casinoRollingLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Casino Rolling'**
+  String get casinoRollingLabel;
+
+  /// No description provided for @shareLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Share'**
+  String get shareLabel;
+
+  /// No description provided for @noDataYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No data yet'**
+  String get noDataYet;
+
+  /// No description provided for @commissionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Commission'**
+  String get commissionLabel;
+
+  /// No description provided for @settledGameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Settled Game'**
+  String get settledGameLabel;
+
+  /// No description provided for @guestLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Guest'**
+  String get guestLabel;
+
+  /// No description provided for @todayLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get todayLabel;
+
+  /// No description provided for @yesterdayLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Yesterday'**
+  String get yesterdayLabel;
+
+  /// No description provided for @noOngoingGames.
+  ///
+  /// In en, this message translates to:
+  /// **'No ongoing games'**
+  String get noOngoingGames;
+
+  /// No description provided for @mainLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Main'**
+  String get mainLabel;
+
+  /// No description provided for @companyLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Company'**
+  String get companyLabel;
+
+  /// No description provided for @liabilitiesLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'LIABILITIES'**
+  String get liabilitiesLabel;
+
+  /// No description provided for @creditLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Credit'**
+  String get creditLabel;
+
+  /// No description provided for @lossAmountLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Loss Amount'**
+  String get lossAmountLabel;
+
+  /// No description provided for @settlementLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'SETTLEMENT'**
+  String get settlementLabel;
+
+  /// No description provided for @additionalLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Additional'**
+  String get additionalLabel;
+
+  /// No description provided for @addChargeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'ADD CHARGE'**
+  String get addChargeLabel;
+
+  /// No description provided for @etcTipLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'ETC (TIP)'**
+  String get etcTipLabel;
+
+  /// No description provided for @tipBalanceLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Tip Balance'**
+  String get tipBalanceLabel;
+
+  /// No description provided for @depositOfGuestsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'DEPOSIT OF GUESTS'**
+  String get depositOfGuestsLabel;
+
+  /// No description provided for @lineLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Line'**
+  String get lineLabel;
 }
 
 class _AppLocalizationsDelegate

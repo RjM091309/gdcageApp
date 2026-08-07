@@ -6,7 +6,8 @@ import '../services/marker_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/skeleton_box.dart';
 
-final _fmt = NumberFormat.currency(locale: 'en_PH', symbol: '₱', decimalDigits: 0);
+final _fmt =
+    NumberFormat.currency(locale: 'en_PH', symbol: '₱', decimalDigits: 0);
 
 class MarkerView extends StatefulWidget {
   const MarkerView({super.key});
@@ -81,24 +82,38 @@ class _MarkerViewState extends State<MarkerView> {
             children: [
               Icon(Icons.description, color: primaryIndigo, size: 20),
               const SizedBox(width: 8),
-              Text(l10n.realTimeMarker, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+              Text(l10n.realTimeMarker,
+                  style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white)),
               const Spacer(),
-              Text(l10n.totalMarker, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey[400])),
+              Text(l10n.totalMarker,
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey[400])),
               const SizedBox(width: 8),
-              Text(_fmt.format(0), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+              Text(_fmt.format(0),
+                  style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white)),
             ],
           ),
           const SizedBox(height: 24),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 48),
             child: Center(
-              child: Text('No marker / credit data', style: TextStyle(fontSize: 15, color: Colors.grey[500])),
+              child: Text('No marker / credit data',
+                  style: TextStyle(fontSize: 15, color: Colors.grey[500])),
             ),
           ),
         ],
       );
     }
-    final totalMarkerBalance = _markers.fold<int>(0, (sum, e) => sum + e.balance);
+    final totalMarkerBalance =
+        _markers.fold<int>(0, (sum, e) => sum + e.balance);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -106,17 +121,31 @@ class _MarkerViewState extends State<MarkerView> {
           children: [
             Icon(Icons.description, color: primaryIndigo, size: 20),
             const SizedBox(width: 8),
-            Text(l10n.realTimeMarker, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+            Text(l10n.realTimeMarker,
+                style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white)),
             const Spacer(),
-            Text(l10n.totalMarker, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey[400])),
+            Text(l10n.totalMarker,
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[400])),
             const SizedBox(width: 8),
-            Text(_fmt.format(totalMarkerBalance), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+            Text(_fmt.format(totalMarkerBalance),
+                style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white)),
           ],
         ),
         const SizedBox(height: 24),
         LayoutBuilder(
           builder: (context, constraints) {
-            final crossAxisCount = constraints.maxWidth > 900 ? 3 : (constraints.maxWidth > 600 ? 2 : 1);
+            final crossAxisCount = constraints.maxWidth > 900
+                ? 3
+                : (constraints.maxWidth > 600 ? 2 : 1);
             return GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -130,7 +159,8 @@ class _MarkerViewState extends State<MarkerView> {
               itemBuilder: (context, i) {
                 final marker = _markers[i];
                 final hasLimit = marker.limit > 0;
-                final usagePercent = hasLimit ? (marker.balance / marker.limit) * 100 : 0.0;
+                final usagePercent =
+                    hasLimit ? (marker.balance / marker.limit) * 100 : 0.0;
                 return _CreditStyleCard(
                   marker: marker,
                   hasLimit: hasLimit,
@@ -158,7 +188,9 @@ class _MarkerViewState extends State<MarkerView> {
         const SizedBox(height: 24),
         LayoutBuilder(
           builder: (context, constraints) {
-            final crossAxisCount = constraints.maxWidth > 900 ? 3 : (constraints.maxWidth > 600 ? 2 : 1);
+            final crossAxisCount = constraints.maxWidth > 900
+                ? 3
+                : (constraints.maxWidth > 600 ? 2 : 1);
             return GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -171,7 +203,8 @@ class _MarkerViewState extends State<MarkerView> {
               itemCount: 6,
               itemBuilder: (context, i) {
                 return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
@@ -297,12 +330,7 @@ class _CreditStyleCard extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Logo (top left)
-                      Image.asset(
-                        'assets/images/logo.png',
-                        height: 28,
-                        fit: BoxFit.contain,
-                      ),
+                      const SizedBox.shrink(),
                       // Date/time + Agent (right column)
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
@@ -311,15 +339,22 @@ class _CreditStyleCard extends StatelessWidget {
                           if (marker.lastUpdate.isNotEmpty)
                             Text(
                               marker.lastUpdate,
-                              style: TextStyle(fontSize: 10, color: Colors.white.withValues(alpha: 0.9), fontWeight: FontWeight.w500),
+                              style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.white.withValues(alpha: 0.9),
+                                  fontWeight: FontWeight.w500),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                           if (marker.guest.isNotEmpty) ...[
-                            if (marker.lastUpdate.isNotEmpty) const SizedBox(height: 4),
+                            if (marker.lastUpdate.isNotEmpty)
+                              const SizedBox(height: 4),
                             Text(
                               'Agent : ${marker.guest}',
-                              style: TextStyle(fontSize: 10, color: Colors.white.withValues(alpha: 0.6), fontWeight: FontWeight.w500),
+                              style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.white.withValues(alpha: 0.6),
+                                  fontWeight: FontWeight.w500),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -363,7 +398,11 @@ class _CreditStyleCard extends StatelessWidget {
                         children: [
                           Text(
                             l10n.activeBalance,
-                            style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: Colors.white.withValues(alpha: 0.5), letterSpacing: 1),
+                            style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white.withValues(alpha: 0.5),
+                                letterSpacing: 1),
                           ),
                           const SizedBox(height: 2),
                           Text(
@@ -371,7 +410,9 @@ class _CreditStyleCard extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 22,
                               fontWeight: FontWeight.w800,
-                              color: marker.balance >= 0 ? Colors.white : roseAccent,
+                              color: marker.balance >= 0
+                                  ? Colors.white
+                                  : roseAccent,
                               letterSpacing: 0.5,
                             ),
                           ),
@@ -389,12 +430,21 @@ class _CreditStyleCard extends StatelessWidget {
                                 children: [
                                   Text(
                                     l10n.limit,
-                                    style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: Colors.white.withValues(alpha: 0.5), letterSpacing: 1),
+                                    style: TextStyle(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w600,
+                                        color:
+                                            Colors.white.withValues(alpha: 0.5),
+                                        letterSpacing: 1),
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
                                     _fmt.format(marker.limit),
-                                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white.withValues(alpha: 0.7)),
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.white
+                                            .withValues(alpha: 0.7)),
                                   ),
                                 ],
                               ),
@@ -422,15 +472,24 @@ class _CreditStyleCard extends StatelessWidget {
                             child: LinearProgressIndicator(
                               value: (usagePercent / 100).clamp(0.0, 1.0),
                               minHeight: 5,
-                              backgroundColor: Colors.white.withValues(alpha: 0.1),
-                              valueColor: AlwaysStoppedAnimation(usagePercent > 80 ? roseAccent : accentPurple),
+                              backgroundColor:
+                                  Colors.white.withValues(alpha: 0.1),
+                              valueColor: AlwaysStoppedAnimation(
+                                  usagePercent > 80
+                                      ? roseAccent
+                                      : accentPurple),
                             ),
                           ),
                         ),
                         const SizedBox(width: 8),
                         Text(
                           '${usagePercent.toStringAsFixed(0)}%',
-                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: usagePercent > 80 ? roseAccent : accentPurple),
+                          style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: usagePercent > 80
+                                  ? roseAccent
+                                  : accentPurple),
                         ),
                       ],
                     ),

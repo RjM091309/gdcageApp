@@ -108,34 +108,11 @@ class _AuthGateState extends State<_AuthGate> {
   bool _attemptingFingerprint = false;
 
   Future<void> _checkAuth() async {
-    final token = await AuthService.instance.getToken();
-    if (token != null && token.isNotEmpty) {
-      final user = await AuthService.instance.getStoredUser();
-      if (user != null && user.permissions != 1) {
-        await AuthService.instance.logout();
-      }
-    }
-    final tokenAfter = await AuthService.instance.getToken();
-    if (tokenAfter != null && tokenAfter.isNotEmpty) {
-      if (!mounted) return;
-      setState(() {
-        _isLoggedIn = true;
-        _loading = false;
-      });
-      return;
-    }
-    final fingerprintEnabled = await AuthService.instance.getFingerprintEnabled();
-    final username = await AuthService.instance.getSavedUsername();
-    final password = await AuthService.instance.getSavedPassword();
-    final canTryFingerprint = BiometricService.instance.isSupportedPlatform;
-    final shouldTryFingerprint = fingerprintEnabled &&
-        username.isNotEmpty &&
-        password.isNotEmpty &&
-        canTryFingerprint;
+    // Login temporarily disabled while the app is being redesigned — go straight inside.
     if (!mounted) return;
     setState(() {
+      _isLoggedIn = true;
       _loading = false;
-      _pendingFingerprint = shouldTryFingerprint;
     });
   }
 

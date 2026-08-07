@@ -9,7 +9,7 @@ class AppLocalizationsKo extends AppLocalizations {
   AppLocalizationsKo([String locale = 'ko']) : super(locale);
 
   @override
-  String get appTitle => '인피니티 케이지';
+  String get appTitle => 'Golden Dragon';
 
   @override
   String get executive => '임원';
@@ -357,4 +357,91 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get receiveNotifications => '알림 받기';
+
+  @override
+  String get statisticsLabel => '통계';
+
+  @override
+  String get ngrLabel => 'NGR';
+
+  @override
+  String get winLossLabel => '윈로스';
+
+  @override
+  String get totalCommissionLabel => '토탈 커미션';
+
+  @override
+  String get gameCommissionLabel => '게임 커미션';
+
+  @override
+  String get additionalCommissionLabel => '어디셔널 커미션';
+
+  @override
+  String get expensesLabel => '지출';
+
+  @override
+  String get cageRollingLabel => '케이지롤링';
+
+  @override
+  String get casinoRollingLabel => '카지노롤링';
+
+  @override
+  String get shareLabel => '셰어';
+
+  @override
+  String get noDataYet => '데이터 없음';
+
+  @override
+  String get commissionLabel => '커미션';
+
+  @override
+  String get settledGameLabel => '정산 게임';
+
+  @override
+  String get guestLabel => '게스트';
+
+  @override
+  String get todayLabel => '오늘';
+
+  @override
+  String get yesterdayLabel => '어제';
+
+  @override
+  String get noOngoingGames => '진행 중인 게임 없음';
+
+  @override
+  String get mainLabel => '메인';
+
+  @override
+  String get companyLabel => '회사';
+
+  @override
+  String get liabilitiesLabel => '부채';
+
+  @override
+  String get creditLabel => '크레딧';
+
+  @override
+  String get lossAmountLabel => '손실 금액';
+
+  @override
+  String get settlementLabel => '정산';
+
+  @override
+  String get additionalLabel => '추가';
+
+  @override
+  String get addChargeLabel => '추가 요금';
+
+  @override
+  String get etcTipLabel => '기타 (팁)';
+
+  @override
+  String get tipBalanceLabel => '팁 잔액';
+
+  @override
+  String get depositOfGuestsLabel => '게스트 예치금';
+
+  @override
+  String get lineLabel => '라인';
 }

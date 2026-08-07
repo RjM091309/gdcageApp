@@ -9,7 +9,7 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get appTitle => 'INF Cage';
+  String get appTitle => 'Golden Dragon';
 
   @override
   String get executive => 'EXECUTIVE';
@@ -361,4 +361,91 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get receiveNotifications => 'Receive notifications';
+
+  @override
+  String get statisticsLabel => 'Statistics';
+
+  @override
+  String get ngrLabel => 'NGR';
+
+  @override
+  String get winLossLabel => 'Win/Loss';
+
+  @override
+  String get totalCommissionLabel => 'Total Commission';
+
+  @override
+  String get gameCommissionLabel => 'Game Commission';
+
+  @override
+  String get additionalCommissionLabel => 'Additional Commission';
+
+  @override
+  String get expensesLabel => 'Expenses';
+
+  @override
+  String get cageRollingLabel => 'Cage Rolling';
+
+  @override
+  String get casinoRollingLabel => 'Casino Rolling';
+
+  @override
+  String get shareLabel => 'Share';
+
+  @override
+  String get noDataYet => 'No data yet';
+
+  @override
+  String get commissionLabel => 'Commission';
+
+  @override
+  String get settledGameLabel => 'Settled Game';
+
+  @override
+  String get guestLabel => 'Guest';
+
+  @override
+  String get todayLabel => 'Today';
+
+  @override
+  String get yesterdayLabel => 'Yesterday';
+
+  @override
+  String get noOngoingGames => 'No ongoing games';
+
+  @override
+  String get mainLabel => 'Main';
+
+  @override
+  String get companyLabel => 'Company';
+
+  @override
+  String get liabilitiesLabel => 'LIABILITIES';
+
+  @override
+  String get creditLabel => 'Credit';
+
+  @override
+  String get lossAmountLabel => 'Loss Amount';
+
+  @override
+  String get settlementLabel => 'SETTLEMENT';
+
+  @override
+  String get additionalLabel => 'Additional';
+
+  @override
+  String get addChargeLabel => 'ADD CHARGE';
+
+  @override
+  String get etcTipLabel => 'ETC (TIP)';
+
+  @override
+  String get tipBalanceLabel => 'Tip Balance';
+
+  @override
+  String get depositOfGuestsLabel => 'DEPOSIT OF GUESTS';
+
+  @override
+  String get lineLabel => 'Line';
 }

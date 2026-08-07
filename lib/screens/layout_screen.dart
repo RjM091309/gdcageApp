@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../constants/feature_flags.dart';
 import '../generated/app_localizations.dart';
 import '../main.dart';
 import '../models/types.dart';
@@ -14,7 +15,8 @@ import '../widgets/active_view_scope.dart';
 import '../widgets/drawer_panel.dart';
 import '../widgets/profile_panel.dart';
 import '../widgets/skeleton_box.dart';
-import '../platform_init_stub.dart' if (dart.library.io) '../platform_init_io.dart' as platform_init;
+import '../platform_init_stub.dart'
+    if (dart.library.io) '../platform_init_io.dart' as platform_init;
 import 'real_time_view.dart';
 import 'daily_settlement_view.dart';
 import 'monthly_view.dart';
@@ -42,10 +44,18 @@ class LayoutScreen extends StatefulWidget {
 }
 
 /// Order of views in bottom nav and PageView (portrait).
-const _viewOrder = [ViewType.realTime, ViewType.daily, ViewType.monthly, ViewType.marker, ViewType.ranking];
+const _viewOrder = [
+  ViewType.realTime,
+  ViewType.daily,
+  ViewType.monthly,
+  ViewType.marker,
+  ViewType.ranking
+];
 
-class _LayoutScreenState extends State<LayoutScreen> with TickerProviderStateMixin, WidgetsBindingObserver {
+class _LayoutScreenState extends State<LayoutScreen>
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   ViewType _activeView = ViewType.realTime;
+
   /// When null = no transition. When set, we're animating from _previousView to _activeView.
   ViewType? _previousView;
   late final AnimationController _contentTransitionController;
@@ -77,20 +87,24 @@ class _LayoutScreenState extends State<LayoutScreen> with TickerProviderStateMix
     });
     _isServerOnline = ServerStatusService.instance.isOnline;
     ServerStatusService.instance.start();
-    _serverStatusSub = ServerStatusService.instance.isOnlineStream.listen((online) {
+    _serverStatusSub =
+        ServerStatusService.instance.isOnlineStream.listen((online) {
       if (mounted) setState(() => _isServerOnline = online);
     });
-    NotificationService.onNotificationsChanged = () {
-      if (mounted) _loadNotifications();
-    };
-    // Load notifications on start so red dot shows for unread without opening panel first
-    _loadNotifications();
-    // Poll every 2s on other tabs. On Real Time tab, notifications are synced with ongoing games via RealTimeView.onPollTick (same 3s).
-    _notificationPollTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
-      if (!mounted || _activeView == ViewType.realTime) return;
-      final enabled = await AuthService.instance.getNotificationsEnabled();
-      if (mounted && enabled) _loadNotifications(silent: true);
-    });
+    if (kNotificationsEnabled) {
+      NotificationService.onNotificationsChanged = () {
+        if (mounted) _loadNotifications();
+      };
+      // Load notifications on start so red dot shows for unread without opening panel first
+      _loadNotifications();
+      // Poll every 2s on other tabs. On Real Time tab, notifications are synced with ongoing games via RealTimeView.onPollTick (same 3s).
+      _notificationPollTimer =
+          Timer.periodic(const Duration(seconds: 2), (_) async {
+        if (!mounted || _activeView == ViewType.realTime) return;
+        final enabled = await AuthService.instance.getNotificationsEnabled();
+        if (mounted && enabled) _loadNotifications(silent: true);
+      });
+    }
     _pageController = PageController(initialPage: 0);
     _contentTransitionController = AnimationController(
       vsync: this,
@@ -120,7 +134,9 @@ class _LayoutScreenState extends State<LayoutScreen> with TickerProviderStateMix
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+    if (!kNotificationsEnabled) return;
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
       platform_init.scheduleOneOffNotificationCheck();
     } else if (state == AppLifecycleState.resumed && mounted) {
       AuthService.instance.getNotificationsEnabled().then((enabled) {
@@ -147,7 +163,10 @@ class _LayoutScreenState extends State<LayoutScreen> with TickerProviderStateMix
     return i >= 0 ? i : 0;
   }
 
-  Future<void> _loadNotifications({bool silent = false, bool acceptEmpty = false, bool append = false}) async {
+  Future<void> _loadNotifications(
+      {bool silent = false,
+      bool acceptEmpty = false,
+      bool append = false}) async {
     if (!mounted) return;
     final previousIds = Set<int>.from(_notifications.map((n) => n.id));
     final offset = append ? _notifications.length : 0;
@@ -156,7 +175,8 @@ class _LayoutScreenState extends State<LayoutScreen> with TickerProviderStateMix
     } else if (!silent) {
       setState(() => _notificationsLoading = true);
     }
-    final result = await NotificationService.instance.fetchNotifications(limit: _notificationPageSize, offset: offset);
+    final result = await NotificationService.instance
+        .fetchNotifications(limit: _notificationPageSize, offset: offset);
     if (!mounted) return;
     final list = result.list;
     final total = result.total;
@@ -169,7 +189,8 @@ class _LayoutScreenState extends State<LayoutScreen> with TickerProviderStateMix
       return;
     }
     final hasNew = nextList.any((n) => !previousIds.contains(n.id));
-    final hasNewUnread = hasNew && nextList.any((n) => !previousIds.contains(n.id) && !n.isRead);
+    final hasNewUnread =
+        hasNew && nextList.any((n) => !previousIds.contains(n.id) && !n.isRead);
     setState(() {
       _notifications = nextList;
       _notificationTotal = total;
@@ -177,7 +198,8 @@ class _LayoutScreenState extends State<LayoutScreen> with TickerProviderStateMix
       _notificationsLoadingMore = false;
     });
     if (!append) {
-      final notificationsEnabled = await AuthService.instance.getNotificationsEnabled();
+      final notificationsEnabled =
+          await AuthService.instance.getNotificationsEnabled();
       final shouldShowToast = mounted && hasNewUnread && notificationsEnabled;
       if (shouldShowToast) {
         SchedulerBinding.instance.addPostFrameCallback((_) {
@@ -210,7 +232,8 @@ class _LayoutScreenState extends State<LayoutScreen> with TickerProviderStateMix
   }
 
   Future<void> _loadMoreNotifications() async {
-    if (_notificationsLoadingMore || _notifications.length >= _notificationTotal) return;
+    if (_notificationsLoadingMore ||
+        _notifications.length >= _notificationTotal) return;
     await _loadNotifications(silent: true, append: true);
   }
 
@@ -228,7 +251,8 @@ class _LayoutScreenState extends State<LayoutScreen> with TickerProviderStateMix
           position: Tween<Offset>(
             begin: const Offset(1, 0),
             end: Offset.zero,
-          ).animate(CurvedAnimation(parent: _toastSlideController, curve: Curves.easeOutCubic)),
+          ).animate(CurvedAnimation(
+              parent: _toastSlideController, curve: Curves.easeOutCubic)),
           child: Material(
             color: Colors.transparent,
             child: Container(
@@ -240,7 +264,10 @@ class _LayoutScreenState extends State<LayoutScreen> with TickerProviderStateMix
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: borderColor),
                 boxShadow: const [
-                  BoxShadow(color: Colors.black26, blurRadius: 12, offset: Offset(-2, 0)),
+                  BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 12,
+                      offset: Offset(-2, 0)),
                 ],
               ),
               child: Row(
@@ -255,7 +282,9 @@ class _LayoutScreenState extends State<LayoutScreen> with TickerProviderStateMix
                     onPressed: () {
                       setState(() => _notificationOpen = true);
                     },
-                    child: Text(l10n.viewNotifications, style: TextStyle(color: primaryIndigo, fontWeight: FontWeight.w600)),
+                    child: Text(l10n.viewNotifications,
+                        style: TextStyle(
+                            color: primaryIndigo, fontWeight: FontWeight.w600)),
                   ),
                 ],
               ),
@@ -335,7 +364,8 @@ class _LayoutScreenState extends State<LayoutScreen> with TickerProviderStateMix
     }
     return PageView(
       controller: _pageController,
-      physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+      physics:
+          const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
       onPageChanged: (index) {
         if (index >= 0 && index < _viewOrder.length) {
           setState(() => _activeView = _viewOrder[index]);
@@ -353,18 +383,27 @@ class _LayoutScreenState extends State<LayoutScreen> with TickerProviderStateMix
       activeView: view,
       child: _buildView(view),
     );
+    if (view == ViewType.ranking) {
+      // Top-aligned (not Center): ranking manages its own bounded-height internal scroll, so
+      // when there's no data its short empty-state content should stay pinned at the top
+      // instead of floating in the middle of the page.
+      return Padding(
+        padding: padding,
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: maxWidth,
+            child: content,
+          ),
+        ),
+      );
+    }
     final wrapped = Center(
       child: ConstrainedBox(
         constraints: maxWidth,
         child: content,
       ),
     );
-    if (view == ViewType.ranking) {
-      return Padding(
-        padding: padding,
-        child: wrapped,
-      );
-    }
     return SingleChildScrollView(
       padding: padding,
       child: wrapped,
@@ -421,250 +460,311 @@ class _LayoutScreenState extends State<LayoutScreen> with TickerProviderStateMix
       body: Container(
         decoration: BoxDecoration(gradient: scaffoldGradient),
         child: SafeArea(
-        child: Stack(
-          children: [
-            Row(
-              children: [
-                if (isWide) _buildSidebar(context),
-                Expanded(
-                  child: Column(
-                    children: [
-                      _buildHeader(context, isWide),
-                      Expanded(
-                        child: !isWide
-                            ? _buildPortraitPageView(context)
-                            : _activeView == ViewType.ranking
-                                ? Padding(
-                                    padding: const EdgeInsets.all(24),
-                                    child: Center(
-                                      child: ConstrainedBox(
-                                        constraints: const BoxConstraints(maxWidth: 1280),
-                                        child: ActiveViewScope(
-                                          activeView: _activeView,
-                                          child: _buildTransitionContent(),
-                                        ),
-                                      ),
-                                    ),
-                                  )
-                                : SingleChildScrollView(
-                                    padding: const EdgeInsets.all(24),
-                                    child: Center(
-                                      child: ConstrainedBox(
-                                        constraints: const BoxConstraints(maxWidth: 1280),
-                                        child: ActiveViewScope(
-                                          activeView: _activeView,
-                                          child: _buildTransitionContent(),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                      ),
-                      if (!isWide) const SizedBox(height: 80),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            if (!isWide)
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: _buildBottomNav(context),
-              ),
-            if (_languageOpen)
-              Positioned.fill(
-                child: DrawerPanel(
-                  title: AppLocalizations.of(context).language,
-                  onClose: () => setState(() => _languageOpen = false),
-                  child: Builder(
-                    builder: (context) {
-                      final l10n = AppLocalizations.of(context);
-                      final scope = AppLocaleScope.of(context);
-                      final current = scope.locale?.languageCode;
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          _languageOption(
-                            context,
-                            flag: '🇺🇸',
-                            label: l10n.english,
-                            isSelected: current == 'en',
-                            onTap: () {
-                              scope.setLocale(const Locale('en'));
-                              setState(() => _languageOpen = false);
-                            },
-                          ),
-                          const SizedBox(height: 12),
-                          _languageOption(
-                            context,
-                            flag: '🇰🇷',
-                            label: l10n.korean,
-                            isSelected: current == 'ko',
-                            onTap: () {
-                              scope.setLocale(const Locale('ko'));
-                              setState(() => _languageOpen = false);
-                            },
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                ),
-              ),
-            if (_notificationOpen)
-              Positioned.fill(
-              child: DrawerPanel(
-              title: AppLocalizations.of(context).notifications,
-              onClose: () => setState(() => _notificationOpen = false),
-              child: ClipRect(
-                child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+          child: Stack(
+            children: [
+              Row(
                 children: [
-                  if (_notificationsLoading)
-                    ...List.generate(5, (_) => Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: _skeletonNotificationCard(),
-                    ))
-                  else ...[
-                    if (_notifications.isEmpty)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 32),
-                        child: Center(
-                          child: Text(
-                            'No notifications',
-                            style: TextStyle(fontSize: 14, color: Colors.grey[500]),
-                          ),
-                        ),
-                      )
-                    else
-                      ..._notifications.map((n) => Padding(
-                            padding: const EdgeInsets.only(bottom: 16),
-                            child: Dismissible(
-                              key: ValueKey<int>(n.id),
-                              direction: DismissDirection.endToStart,
-                              onDismissed: (_) => _hideNotification(n.id),
-                              background: Container(
-                                alignment: Alignment.centerRight,
-                                padding: const EdgeInsets.only(right: 20),
-                                decoration: BoxDecoration(
-                                  color: roseAccent.withValues(alpha: 0.3),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: borderColor),
-                                ),
-                                child: const Icon(Icons.delete_outline, color: Colors.white70, size: 24),
-                              ),
-                              child: Material(
-                                color: Colors.transparent,
-                                child: InkWell(
-                                  onTap: () => _markNotificationAsRead(n),
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: Container(
-                                    padding: const EdgeInsets.all(16),
-                                    decoration: BoxDecoration(
-                                      color: cardBg,
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: borderColor),
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            Row(
-                                              children: [
-                                                if (!n.isRead)
-                                                  Padding(
-                                                    padding: const EdgeInsets.only(right: 8),
-                                                    child: Container(
-                                                      width: 8,
-                                                      height: 8,
-                                                      decoration: BoxDecoration(
-                                                        color: roseAccent,
-                                                        shape: BoxShape.circle,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                Text(
-                                                  n.title,
-                                                  style: TextStyle(
-                                                    fontSize: 12,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: _notificationTitleColor(n),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                            Text(n.time, style: TextStyle(fontSize: 9, color: Colors.grey[500])),
-                                          ],
+                  if (isWide) _buildSidebar(context),
+                  Expanded(
+                    child: Column(
+                      children: [
+                        _buildHeader(context, isWide),
+                        Expanded(
+                          child: !isWide
+                              ? _buildPortraitPageView(context)
+                              : _activeView == ViewType.ranking
+                                  ? Padding(
+                                      padding: const EdgeInsets.all(24),
+                                      child: Align(
+                                        alignment: Alignment.topCenter,
+                                        child: ConstrainedBox(
+                                          constraints: const BoxConstraints(
+                                              maxWidth: 1280),
+                                          child: ActiveViewScope(
+                                            activeView: _activeView,
+                                            child: _buildTransitionContent(),
+                                          ),
                                         ),
-                                        const SizedBox(height: 4),
-                                        _buildNotificationMessage(n.message),
-                                      ],
+                                      ),
+                                    )
+                                  : SingleChildScrollView(
+                                      padding: const EdgeInsets.all(24),
+                                      child: Center(
+                                        child: ConstrainedBox(
+                                          constraints: const BoxConstraints(
+                                              maxWidth: 1280),
+                                          child: ActiveViewScope(
+                                            activeView: _activeView,
+                                            child: _buildTransitionContent(),
+                                          ),
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          )),
-                    if (_notifications.length < _notificationTotal && _notifications.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Center(
-                          child: TextButton(
-                            onPressed: _notificationsLoadingMore ? null : _loadMoreNotifications,
-                            child: _notificationsLoadingMore
-                                ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: primaryIndigo))
-                                : Text(AppLocalizations.of(context).loadMore, style: TextStyle(fontSize: 12, color: primaryIndigo)),
-                          ),
                         ),
-                      ),
-                    if (_notifications.isNotEmpty)
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          TextButton(
-                            onPressed: _markAllNotificationsAsRead,
-                            child: Text(
-                              AppLocalizations.of(context).markAllAsRead,
-                              style: TextStyle(fontSize: 12, color: Colors.grey[400]),
-                            ),
-                          ),
-                          Text('·', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-                          TextButton(
-                            onPressed: _clearAllNotifications,
-                            child: Text(
-                              AppLocalizations.of(context).clearAllNotifications,
-                              style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-                            ),
-                          ),
-                        ],
-                      ),
-                  ],
+                        if (!isWide) const SizedBox(height: 80),
+                      ],
+                    ),
+                  ),
                 ],
               ),
-              ),
-              ),
-              ),
-            if (_profileOpen)
-              Positioned.fill(
-                child: ProfilePanel(
-                  onClose: () => setState(() => _profileOpen = false),
-                  onLogout: () => widget.onLogout?.call(),
-                  currentUser: _currentUser,
+              if (!isWide)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: _buildBottomNav(context),
                 ),
-              ),
-            if (_showNotificationToast) _buildNotificationToast(context),
-          ],
+              if (_languageOpen)
+                Positioned.fill(
+                  child: DrawerPanel(
+                    title: AppLocalizations.of(context).language,
+                    onClose: () => setState(() => _languageOpen = false),
+                    child: Builder(
+                      builder: (context) {
+                        final l10n = AppLocalizations.of(context);
+                        final scope = AppLocaleScope.of(context);
+                        final current = scope.locale?.languageCode;
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _languageOption(
+                              context,
+                              flag: '🇺🇸',
+                              label: l10n.english,
+                              isSelected: current == 'en',
+                              onTap: () {
+                                scope.setLocale(const Locale('en'));
+                                setState(() => _languageOpen = false);
+                              },
+                            ),
+                            const SizedBox(height: 12),
+                            _languageOption(
+                              context,
+                              flag: '🇰🇷',
+                              label: l10n.korean,
+                              isSelected: current == 'ko',
+                              onTap: () {
+                                scope.setLocale(const Locale('ko'));
+                                setState(() => _languageOpen = false);
+                              },
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              if (_notificationOpen)
+                Positioned.fill(
+                  child: DrawerPanel(
+                    title: AppLocalizations.of(context).notifications,
+                    onClose: () => setState(() => _notificationOpen = false),
+                    child: ClipRect(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (_notificationsLoading)
+                            ...List.generate(
+                                5,
+                                (_) => Padding(
+                                      padding:
+                                          const EdgeInsets.only(bottom: 16),
+                                      child: _skeletonNotificationCard(),
+                                    ))
+                          else ...[
+                            if (_notifications.isEmpty)
+                              Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 32),
+                                child: Center(
+                                  child: Text(
+                                    'No notifications',
+                                    style: TextStyle(
+                                        fontSize: 14, color: Colors.grey[500]),
+                                  ),
+                                ),
+                              )
+                            else
+                              ..._notifications.map((n) => Padding(
+                                    padding: const EdgeInsets.only(bottom: 16),
+                                    child: Dismissible(
+                                      key: ValueKey<int>(n.id),
+                                      direction: DismissDirection.endToStart,
+                                      onDismissed: (_) =>
+                                          _hideNotification(n.id),
+                                      background: Container(
+                                        alignment: Alignment.centerRight,
+                                        padding:
+                                            const EdgeInsets.only(right: 20),
+                                        decoration: BoxDecoration(
+                                          color:
+                                              roseAccent.withValues(alpha: 0.3),
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                          border:
+                                              Border.all(color: borderColor),
+                                        ),
+                                        child: const Icon(Icons.delete_outline,
+                                            color: Colors.white70, size: 24),
+                                      ),
+                                      child: Material(
+                                        color: Colors.transparent,
+                                        child: InkWell(
+                                          onTap: () =>
+                                              _markNotificationAsRead(n),
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                          child: Container(
+                                            padding: const EdgeInsets.all(16),
+                                            decoration: BoxDecoration(
+                                              color: cardBg,
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                              border: Border.all(
+                                                  color: borderColor),
+                                            ),
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Row(
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment
+                                                          .spaceBetween,
+                                                  children: [
+                                                    Row(
+                                                      children: [
+                                                        if (!n.isRead)
+                                                          Padding(
+                                                            padding:
+                                                                const EdgeInsets
+                                                                    .only(
+                                                                    right: 8),
+                                                            child: Container(
+                                                              width: 8,
+                                                              height: 8,
+                                                              decoration:
+                                                                  BoxDecoration(
+                                                                color:
+                                                                    roseAccent,
+                                                                shape: BoxShape
+                                                                    .circle,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        Text(
+                                                          n.title,
+                                                          style: TextStyle(
+                                                            fontSize: 12,
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                            color:
+                                                                _notificationTitleColor(
+                                                                    n),
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    Text(n.time,
+                                                        style: TextStyle(
+                                                            fontSize: 9,
+                                                            color: Colors
+                                                                .grey[500])),
+                                                  ],
+                                                ),
+                                                const SizedBox(height: 4),
+                                                _buildNotificationMessage(
+                                                    n.message),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  )),
+                            if (_notifications.length < _notificationTotal &&
+                                _notifications.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 8),
+                                child: Center(
+                                  child: TextButton(
+                                    onPressed: _notificationsLoadingMore
+                                        ? null
+                                        : _loadMoreNotifications,
+                                    child: _notificationsLoadingMore
+                                        ? SizedBox(
+                                            width: 20,
+                                            height: 20,
+                                            child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                color: primaryIndigo))
+                                        : Text(
+                                            AppLocalizations.of(context)
+                                                .loadMore,
+                                            style: TextStyle(
+                                                fontSize: 12,
+                                                color: primaryIndigo)),
+                                  ),
+                                ),
+                              ),
+                            if (_notifications.isNotEmpty)
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  TextButton(
+                                    onPressed: _markAllNotificationsAsRead,
+                                    child: Text(
+                                      AppLocalizations.of(context)
+                                          .markAllAsRead,
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey[400]),
+                                    ),
+                                  ),
+                                  Text('·',
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey[600])),
+                                  TextButton(
+                                    onPressed: _clearAllNotifications,
+                                    child: Text(
+                                      AppLocalizations.of(context)
+                                          .clearAllNotifications,
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey[500]),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              if (_profileOpen)
+                Positioned.fill(
+                  child: ProfilePanel(
+                    onClose: () => setState(() => _profileOpen = false),
+                    onLogout: () => widget.onLogout?.call(),
+                    currentUser: _currentUser,
+                  ),
+                ),
+              if (_showNotificationToast) _buildNotificationToast(context),
+            ],
+          ),
         ),
       ),
-        ),
     );
   }
 
-  Widget _languageOption(BuildContext context, {required String flag, required String label, required bool isSelected, required VoidCallback onTap}) {
+  Widget _languageOption(BuildContext context,
+      {required String flag,
+      required String label,
+      required bool isSelected,
+      required VoidCallback onTap}) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -679,10 +779,15 @@ class _LayoutScreenState extends State<LayoutScreen> with TickerProviderStateMix
           ),
           child: Row(
             children: [
-              Icon(Icons.check, size: 20, color: isSelected ? primaryIndigo : Colors.grey),
+              Icon(Icons.check,
+                  size: 20, color: isSelected ? primaryIndigo : Colors.grey),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(label, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: isSelected ? primaryIndigo : Colors.white)),
+                child: Text(label,
+                    style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: isSelected ? primaryIndigo : Colors.white)),
               ),
               const SizedBox(width: 12),
               Text(flag, style: const TextStyle(fontSize: 24, height: 1.2)),
@@ -712,7 +817,8 @@ class _LayoutScreenState extends State<LayoutScreen> with TickerProviderStateMix
             ],
           ),
           const SizedBox(height: 8),
-          const SkeletonBox(height: 11, width: double.infinity, borderRadius: 4),
+          const SkeletonBox(
+              height: 11, width: double.infinity, borderRadius: 4),
           const SizedBox(height: 4),
           const SkeletonBox(height: 11, width: 200, borderRadius: 4),
         ],
@@ -740,10 +846,14 @@ class _LayoutScreenState extends State<LayoutScreen> with TickerProviderStateMix
       default:
         // Fallback by title for old notifications with type 'info'
         final t = n.title.toLowerCase();
-        if (t.contains('game started') || t.contains('new game')) return emeraldAccent;
-        if (t.contains('buy-in added') || t.contains('buy in added')) return amberAccent;
-        if (t.contains('cash-out added') || t.contains('cash out added')) return tealAccent;
-        if (t.contains('game ended') || t.contains('has ended')) return accentPurple;
+        if (t.contains('game started') || t.contains('new game'))
+          return emeraldAccent;
+        if (t.contains('buy-in added') || t.contains('buy in added'))
+          return amberAccent;
+        if (t.contains('cash-out added') || t.contains('cash out added'))
+          return tealAccent;
+        if (t.contains('game ended') || t.contains('has ended'))
+          return accentPurple;
         return primaryIndigo;
     }
   }
@@ -759,7 +869,10 @@ class _LayoutScreenState extends State<LayoutScreen> with TickerProviderStateMix
     final before = message.substring(0, idx);
     final winLossPart = message.substring(idx + _winLossPrefix.length);
     final trimmed = winLossPart.trim();
-    final isNegative = trimmed.startsWith('-') || trimmed.contains('−') || trimmed.startsWith('P-') || trimmed.startsWith('₱-');
+    final isNegative = trimmed.startsWith('-') ||
+        trimmed.contains('−') ||
+        trimmed.startsWith('P-') ||
+        trimmed.startsWith('₱-');
     final winLossColor = isNegative ? roseAccent : emeraldAccent;
     return RichText(
       text: TextSpan(
@@ -768,7 +881,8 @@ class _LayoutScreenState extends State<LayoutScreen> with TickerProviderStateMix
           TextSpan(text: before),
           TextSpan(
             text: _winLossPrefix + winLossPart,
-            style: TextStyle(fontSize: 13, color: winLossColor, fontWeight: FontWeight.w600),
+            style: TextStyle(
+                fontSize: 13, color: winLossColor, fontWeight: FontWeight.w600),
           ),
         ],
       ),
@@ -796,92 +910,148 @@ class _LayoutScreenState extends State<LayoutScreen> with TickerProviderStateMix
         clipBehavior: Clip.none,
         children: [
           Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(24),
-            child: Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(color: primaryIndigo, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: primaryIndigo.withValues(alpha: 0.3), blurRadius: 12)]),
-                  child: const Icon(Icons.dashboard, color: Colors.white, size: 24),
-                ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: Row(
                   children: [
-                    Text(AppLocalizations.of(context).appTitle, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
-                    Text(AppLocalizations.of(context).executive, style: TextStyle(fontSize: 10, color: primaryIndigo, fontWeight: FontWeight.w600, letterSpacing: 2)),
+                    Image.asset('assets/images/logoOnly.png',
+                        width: 58, height: 58, fit: BoxFit.contain),
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(AppLocalizations.of(context).appTitle,
+                            style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white)),
+                        Text(AppLocalizations.of(context).executive,
+                            style: TextStyle(
+                                fontSize: 10,
+                                color: primaryIndigo,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 2)),
+                      ],
+                    ),
                   ],
                 ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(AppLocalizations.of(context).mainMenu, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 2)),
-            ),
-          ),
-          const SizedBox(height: 16),
-          ...navItems(context).map((e) {
-            final isActive = _activeView == e.$1;
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () => _setActiveView(e.$1),
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: isActive ? primaryIndigo.withValues(alpha: 0.1) : Colors.transparent,
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(AppLocalizations.of(context).mainMenu,
+                      style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey,
+                          letterSpacing: 2)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              ...navItems(context).map((e) {
+                final isActive = _activeView == e.$1;
+                return Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () => _setActiveView(e.$1),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: isActive ? primaryIndigo.withValues(alpha: 0.2) : Colors.transparent),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: isActive
+                              ? primaryIndigo.withValues(alpha: 0.1)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                              color: isActive
+                                  ? primaryIndigo.withValues(alpha: 0.2)
+                                  : Colors.transparent),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(e.$3,
+                                size: 20,
+                                color: isActive ? primaryIndigo : Colors.grey),
+                            const SizedBox(width: 12),
+                            Text(e.$2,
+                                style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: isActive
+                                        ? primaryIndigo
+                                        : Colors.grey)),
+                            if (isActive) const Spacer(),
+                            if (isActive)
+                              Container(
+                                  width: 6,
+                                  height: 6,
+                                  decoration: BoxDecoration(
+                                      color: primaryIndigo,
+                                      shape: BoxShape.circle,
+                                      boxShadow: [
+                                        BoxShadow(
+                                            color: primaryIndigo.withValues(
+                                                alpha: 0.8),
+                                            blurRadius: 8)
+                                      ])),
+                          ],
+                        ),
+                      ),
                     ),
-                    child: Row(
-                      children: [
-                        Icon(e.$3, size: 20, color: isActive ? primaryIndigo : Colors.grey),
-                        const SizedBox(width: 12),
-                        Text(e.$2, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: isActive ? primaryIndigo : Colors.grey)),
-                        if (isActive) const Spacer(),
-                        if (isActive) Container(width: 6, height: 6, decoration: BoxDecoration(color: primaryIndigo, shape: BoxShape.circle, boxShadow: [BoxShadow(color: primaryIndigo.withValues(alpha: 0.8), blurRadius: 8)])),
-                      ],
-                    ),
+                  ),
+                );
+              }),
+              const Spacer(),
+              InkWell(
+                onTap: () => setState(() => _profileOpen = true),
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                          radius: 20,
+                          backgroundColor: primaryIndigo.withValues(alpha: 0.3),
+                          child: const Icon(Icons.person,
+                              color: Colors.white, size: 20)),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                                _currentUser?.displayName ??
+                                    AppLocalizations.of(context).executiveBoss,
+                                style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white),
+                                overflow: TextOverflow.ellipsis),
+                            const SizedBox(height: 2),
+                            Text(
+                                _currentUser?.permissions == 1
+                                    ? AppLocalizations.of(context).administrator
+                                    : (_currentUser?.role ??
+                                        AppLocalizations.of(context)
+                                            .administrator),
+                                style: TextStyle(
+                                    fontSize: 10, color: emeraldAccent),
+                                overflow: TextOverflow.ellipsis),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
-            );
-          }),
-          const Spacer(),
-          InkWell(
-            onTap: () => setState(() => _profileOpen = true),
-            borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  CircleAvatar(radius: 20, backgroundColor: primaryIndigo.withValues(alpha: 0.3), child: const Icon(Icons.person, color: Colors.white, size: 20)),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(_currentUser?.displayName ?? AppLocalizations.of(context).executiveBoss, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white), overflow: TextOverflow.ellipsis),
-                        const SizedBox(height: 2),
-                        Text(_currentUser?.permissions == 1 ? AppLocalizations.of(context).administrator : (_currentUser?.role ?? AppLocalizations.of(context).administrator), style: TextStyle(fontSize: 10, color: emeraldAccent), overflow: TextOverflow.ellipsis),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
+            ],
           ),
           // sample.html .tabs-nav::before — vertical gradient line on right edge
           Positioned(
@@ -922,27 +1092,34 @@ class _LayoutScreenState extends State<LayoutScreen> with TickerProviderStateMix
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(color: primaryIndigo, borderRadius: BorderRadius.circular(8)),
-                  child: const Icon(Icons.dashboard, color: Colors.white, size: 18),
-                ),
+                Image.asset('assets/images/logoOnly.png',
+                    width: 46, height: 46, fit: BoxFit.contain),
                 const SizedBox(width: 8),
-                Text(AppLocalizations.of(context).appTitle, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white)),
+                Text(AppLocalizations.of(context).appTitle,
+                    style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white)),
               ],
             ),
           if (!isWide) const Spacer(),
           if (isWide)
             Text(
               _viewLabel(context),
-              style: GoogleFonts.plusJakartaSans(fontSize: 24, fontWeight: FontWeight.w700, color: Colors.white, letterSpacing: -0.5),
+              style: GoogleFonts.plusJakartaSans(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                  letterSpacing: -0.5),
             ),
           const Spacer(),
           if (isWide)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(color: cardBg, borderRadius: BorderRadius.circular(20), border: Border.all(color: borderColor)),
+              decoration: BoxDecoration(
+                  color: cardBg,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: borderColor)),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -975,31 +1152,38 @@ class _LayoutScreenState extends State<LayoutScreen> with TickerProviderStateMix
             onPressed: () => setState(() => _languageOpen = true),
             icon: const Icon(Icons.language, color: Colors.grey, size: 24),
           ),
-          IconButton(
-            onPressed: () {
-              setState(() => _notificationOpen = true);
-              _loadNotifications();
-            },
-            icon: Stack(
-              children: [
-                const Icon(Icons.notifications_none, color: Colors.grey, size: 24),
-                if (_notifications.any((n) => !n.isRead))
-                  Positioned(
-                    top: 0,
-                    right: 0,
-                    child: Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(color: roseAccent, shape: BoxShape.circle),
+          if (kNotificationsEnabled)
+            IconButton(
+              onPressed: () {
+                setState(() => _notificationOpen = true);
+                _loadNotifications();
+              },
+              icon: Stack(
+                children: [
+                  const Icon(Icons.notifications_none,
+                      color: Colors.grey, size: 24),
+                  if (_notifications.any((n) => !n.isRead))
+                    Positioned(
+                      top: 0,
+                      right: 0,
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                            color: roseAccent, shape: BoxShape.circle),
+                      ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
-          ),
           if (!isWide)
             IconButton(
               onPressed: () => setState(() => _profileOpen = true),
-              icon: CircleAvatar(radius: 18, backgroundColor: primaryIndigo, child: const Icon(Icons.person, size: 18, color: Colors.white)),
+              icon: CircleAvatar(
+                  radius: 18,
+                  backgroundColor: primaryIndigo,
+                  child:
+                      const Icon(Icons.person, size: 18, color: Colors.white)),
             ),
         ],
       ),
@@ -1046,29 +1230,39 @@ class _LayoutScreenState extends State<LayoutScreen> with TickerProviderStateMix
             padding: const EdgeInsets.symmetric(vertical: 16),
             child: SafeArea(
               child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: navItems(context).map((e) {
-            final isActive = _activeView == e.$1;
-            return InkWell(
-              onTap: () => _setActiveView(e.$1, animatePage: true),
-              borderRadius: BorderRadius.circular(12),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: isActive ? BoxDecoration(color: primaryIndigo.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(12)) : null,
-                    child: Icon(e.$3, size: 22, color: isActive ? primaryIndigo : Colors.grey),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    e.$2,
-                    style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 0.5, color: isActive ? primaryIndigo : Colors.grey),
-                  ),
-                ],
-              ),
-            );
-              }).toList(),
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: navItems(context).map((e) {
+                  final isActive = _activeView == e.$1;
+                  return InkWell(
+                    onTap: () => _setActiveView(e.$1, animatePage: true),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: isActive
+                              ? BoxDecoration(
+                                  color: primaryIndigo.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(12))
+                              : null,
+                          child: Icon(e.$3,
+                              size: 22,
+                              color: isActive ? primaryIndigo : Colors.grey),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          e.$2,
+                          style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.5,
+                              color: isActive ? primaryIndigo : Colors.grey),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
               ),
             ),
           ),

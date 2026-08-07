@@ -1,10 +1,21 @@
 
 
-const String apiBaseUrl = 'https://infinitycage.3core21.com';
+const String apiBaseUrl = 'https://gdcage.3core21.com';
 
 String get loginApiUrl => '$apiBaseUrl/api/auth/login';
 
 String get realtimeApiUrl => '$apiBaseUrl/api/realtime';
+
+String get dashboardSummaryApiUrl => '$apiBaseUrl/api/dashboard-summary';
+
+String get dashboardStatementApiUrl => '$apiBaseUrl/api/dashboard-statement';
+
+String get monthlyGamesApiUrl => '$apiBaseUrl/api/monthly-games';
+
+String monthlyStatisticsApiUrl({int? year}) {
+  final y = year ?? DateTime.now().year;
+  return '$apiBaseUrl/api/monthly-statistics?year=$y';
+}
 
 String get notificationsApiUrl => '$apiBaseUrl/api/notifications';
 

@@ -1,13 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+
 import '../generated/app_localizations.dart';
-import '../services/monthly_service.dart';
-import '../widgets/stat_card.dart';
-import '../widgets/skeleton_box.dart';
+import '../models/monthly_games.dart';
+import '../services/monthly_games_service.dart';
 import '../theme/app_theme.dart';
 
-final _fmt = NumberFormat.currency(locale: 'en_PH', symbol: '₱', decimalDigits: 0);
-final _fmtCompact = NumberFormat.compact(locale: 'en_PH');
+String _kFmt(int value) {
+  if (value == 0) return '0';
+  // Small non-zero amounts (e.g. ₱450) would round to "0K" and look identical to an actually
+  // zero value — show the exact figure instead of abbreviating.
+  if (value.abs() < 1000) return NumberFormat.decimalPattern().format(value);
+  return '${NumberFormat.decimalPattern().format((value / 1000).round())}K';
+}
+
+String _rankOf(int index) => index.toString().padLeft(2, '0');
 
 class MonthlyView extends StatefulWidget {
   const MonthlyView({super.key});
@@ -17,10 +24,15 @@ class MonthlyView extends StatefulWidget {
 }
 
 class _MonthlyViewState extends State<MonthlyView> {
-  bool _chartAnimate = false;
+  bool _todaySelected = true;
+  MonthlyGames? _games;
   bool _loading = true;
-  String? _error;
-  MonthlyResult _result = MonthlyResult.empty();
+
+  // Uniform text scale: matches the row/section font sizes used on the Weekly (statement) tab.
+  static const _rowFontMobile = 16.0;
+  static const _rowFontTablet = 19.0;
+  static const _headerFontMobile = 14.0;
+  static const _headerFontTablet = 16.0;
 
   @override
   void initState() {
@@ -29,399 +41,370 @@ class _MonthlyViewState extends State<MonthlyView> {
   }
 
   Future<void> _load() async {
+    final games = await MonthlyGamesService.instance.fetchMonthlyGames();
+    if (!mounted) return;
     setState(() {
-      _loading = true;
-      _error = null;
-      _chartAnimate = false;
+      _games = games;
+      _loading = false;
     });
-    try {
-      final result = await MonthlyService.instance.fetch();
-      if (!mounted) return;
-      setState(() {
-        _result = result;
-        _loading = false;
-      });
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) setState(() => _chartAnimate = true);
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _loading = false;
-        _error = 'Failed to load monthly data';
-      });
-    }
   }
 
-  String _monthLabel(BuildContext context, String key) {
+  Widget _sectionTitleBar(String text, bool isTablet, {Widget? trailing}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: primaryIndigo.withValues(alpha: 0.28),
+        border: Border(bottom: BorderSide(color: borderColor)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(text,
+              style: TextStyle(
+                  fontSize: isTablet ? _headerFontTablet : _headerFontMobile,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white)),
+          if (trailing != null) trailing,
+        ],
+      ),
+    );
+  }
+
+  Widget _toggleButton(
+      String label, bool selected, bool isTablet, VoidCallback onTap) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color:
+                selected ? primaryIndigo : Colors.white.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+                color: selected
+                    ? primaryIndigo
+                    : Colors.white.withValues(alpha: 0.12)),
+          ),
+          child: Text(label,
+              style: TextStyle(
+                  fontSize: isTablet ? _headerFontTablet : _headerFontMobile,
+                  fontWeight: FontWeight.w700,
+                  color: selected ? Colors.white : Colors.grey[400])),
+        ),
+      ),
+    );
+  }
+
+  Widget _tableHeader(bool isTablet, {bool showGuest = true}) {
     final l10n = AppLocalizations.of(context);
-    switch (key) {
-      case 'January': return l10n.monthJanuary;
-      case 'February': return l10n.monthFebruary;
-      case 'March': return l10n.monthMarch;
-      case 'April': return l10n.monthApril;
-      case 'May': return l10n.monthMay;
-      case 'June': return l10n.monthJune;
-      case 'July': return l10n.monthJuly;
-      case 'August': return l10n.monthAugust;
-      case 'September': return l10n.monthSeptember;
-      case 'October': return l10n.monthOctober;
-      case 'November': return l10n.monthNovember;
-      case 'December': return l10n.monthDecember;
-      default: return key;
-    }
+    final fontSize = isTablet ? _headerFontTablet : _headerFontMobile;
+    final style = TextStyle(
+        fontSize: fontSize,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.4,
+        color: Colors.grey[400]);
+    return Container(
+      color: Colors.white.withValues(alpha: 0.03),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      child: Row(
+        children: [
+          const SizedBox(width: 40),
+          if (showGuest)
+            Expanded(flex: 2, child: Text(l10n.guestLabel, style: style)),
+          Expanded(
+              child:
+                  Text(l10n.buyIn, textAlign: TextAlign.end, style: style)),
+          Expanded(
+              child:
+                  Text(l10n.cashOut, textAlign: TextAlign.end, style: style)),
+          Expanded(
+              child: Text(l10n.commissionLabel,
+                  textAlign: TextAlign.end, style: style)),
+          Expanded(
+              child: Text(l10n.winLossLabel,
+                  textAlign: TextAlign.end, style: style)),
+        ],
+      ),
+    );
+  }
+
+  Widget _rankBadge(String rank) {
+    return Container(
+      width: 26,
+      height: 26,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: amberAccent.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(7),
+      ),
+      child: Text(rank,
+          style: TextStyle(
+              fontSize: 11, fontWeight: FontWeight.bold, color: amberAccent)),
+    );
+  }
+
+  Widget _ongoingRow(String rank, OngoingGameRow row, bool isTablet, bool striped) {
+    final fontSize = isTablet ? _rowFontTablet : _rowFontMobile;
+    return Container(
+      color: striped ? Colors.white.withValues(alpha: 0.02) : null,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      child: Row(
+        children: [
+          _rankBadge(rank),
+          const SizedBox(width: 14),
+          Expanded(
+              flex: 2,
+              child: Text(row.account,
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                  style: TextStyle(
+                      fontSize: fontSize,
+                      fontWeight: FontWeight.bold,
+                      color: tealAccent))),
+          Expanded(
+              child: Text(_kFmt(row.buyIn),
+                  textAlign: TextAlign.end,
+                  style: TextStyle(
+                      fontSize: fontSize,
+                      fontWeight: FontWeight.bold,
+                      color: roseAccent))),
+          Expanded(
+              child: Text(_kFmt(row.cashOut),
+                  textAlign: TextAlign.end,
+                  style: TextStyle(
+                      fontSize: fontSize,
+                      fontWeight: FontWeight.bold,
+                      color: roseAccent))),
+          Expanded(
+              child: Text(_kFmt(row.commission),
+                  textAlign: TextAlign.end,
+                  style: TextStyle(
+                      fontSize: fontSize,
+                      fontWeight: FontWeight.bold,
+                      color: amberAccent))),
+          Expanded(
+              child: Text(_kFmt(row.winLoss),
+                  textAlign: TextAlign.end,
+                  style: TextStyle(
+                      fontSize: fontSize,
+                      fontWeight: FontWeight.bold,
+                      color: accentPurple))),
+        ],
+      ),
+    );
+  }
+
+  Widget _miniStat(String label, String value, Color color) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label.toUpperCase(),
+            style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.5,
+                color: Colors.grey[500])),
+        const SizedBox(height: 3),
+        Text(value,
+            style: TextStyle(
+                fontSize: 15, fontWeight: FontWeight.bold, color: color)),
+      ],
+    );
+  }
+
+  /// Narrow screens can't fit a 6-column table without wrapping, so show each
+  /// game as a card with a 2-column stat grid instead.
+  Widget _ongoingCardMobile(String rank, OngoingGameRow row) {
+    final l10n = AppLocalizations.of(context);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: borderColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _rankBadge(rank),
+              const SizedBox(width: 10),
+              Flexible(
+                child: Text(row.account,
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: tealAccent)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                  child: _miniStat(l10n.buyIn, _kFmt(row.buyIn), roseAccent)),
+              Expanded(
+                  child: _miniStat(
+                      l10n.cashOut, _kFmt(row.cashOut), roseAccent)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                  child: _miniStat(l10n.commissionLabel,
+                      _kFmt(row.commission), amberAccent)),
+              Expanded(
+                  child: _miniStat(l10n.winLossLabel, _kFmt(row.winLoss),
+                      accentPurple)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _settledRow(SettledGameTotals totals, bool isTablet) {
+    final fontSize = isTablet ? _rowFontTablet : _rowFontMobile;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      child: Row(
+        children: [
+          _rankBadge(_rankOf(totals.gameCount)),
+          const SizedBox(width: 14),
+          Expanded(
+              child: Text(_kFmt(totals.buyIn),
+                  textAlign: TextAlign.end,
+                  style: TextStyle(
+                      fontSize: fontSize,
+                      fontWeight: FontWeight.bold,
+                      color: roseAccent))),
+          Expanded(
+              child: Text(_kFmt(totals.cashOut),
+                  textAlign: TextAlign.end,
+                  style: TextStyle(
+                      fontSize: fontSize,
+                      fontWeight: FontWeight.bold,
+                      color: roseAccent))),
+          Expanded(
+              child: Text(_kFmt(totals.commission),
+                  textAlign: TextAlign.end,
+                  style: TextStyle(
+                      fontSize: fontSize,
+                      fontWeight: FontWeight.bold,
+                      color: amberAccent))),
+          Expanded(
+              child: Text(_kFmt(totals.winLoss),
+                  textAlign: TextAlign.end,
+                  style: TextStyle(
+                      fontSize: fontSize,
+                      fontWeight: FontWeight.bold,
+                      color: accentPurple))),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    if (_loading && _result.casinoRollingByMonth.isEmpty) {
-      return _buildSkeletonContent(context);
-    }
-    if (_error != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(_error!, style: TextStyle(color: Colors.grey[400])),
-              const SizedBox(height: 16),
-              FilledButton(
-                onPressed: _load,
-                style: FilledButton.styleFrom(backgroundColor: primaryIndigo),
-                child: const Text('Retry'),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isTablet = constraints.maxWidth > 500;
+        final games = _games ?? const MonthlyGames.empty();
+        final ongoing = games.ongoing;
+        final settled =
+            _todaySelected ? games.settledToday : games.settledPrevious;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: borderColor),
               ),
-            ],
-          ),
-        ),
-      );
-    }
-    final r = _result;
-    final winLossStr = r.winLoss >= 0 ? _fmt.format(r.winLoss) : '-${_fmt.format(r.winLoss.abs())}';
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        StatCard(
-          label: l10n.monthlyAccumulatedWinLoss,
-          value: winLossStr,
-          icon: Icons.gps_fixed,
-          color: r.winLoss >= 0 ? StatCardColor.emerald : StatCardColor.rose,
-        ),
-        const SizedBox(height: 16),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final isWide = constraints.maxWidth > 700;
-            if (isWide) {
-              return GridView.count(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: 3,
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                childAspectRatio: 1.9,
+              clipBehavior: Clip.antiAlias,
+              child: Column(
                 children: [
-                  _metricCard(l10n.topMonthlyCommission, l10n.total, _fmt.format(r.commissionTotal), Icons.star, amberAccent),
-                  _metricCard(l10n.accumulatedExpenses, l10n.mtdExpenditure, _fmt.format(r.junketExpenses), Icons.verified_user, roseAccent),
-                  _metricCard(l10n.gamesRolling, l10n.totalRolling, _fmt.format(r.rollingGames), Icons.sports_esports, primaryIndigo),
-                ],
-              );
-            }
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _metricCard(l10n.topMonthlyCommission, l10n.total, _fmt.format(r.commissionTotal), Icons.star, amberAccent),
-                const SizedBox(height: 12),
-                _metricCard(l10n.accumulatedExpenses, l10n.mtdExpenditure, _fmt.format(r.junketExpenses), Icons.verified_user, roseAccent),
-                const SizedBox(height: 12),
-                _metricCard(l10n.gamesRolling, l10n.totalRolling, _fmt.format(r.rollingGames), Icons.sports_esports, primaryIndigo),
-              ],
-            );
-          },
-        ),
-        const SizedBox(height: 24),
-        Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                primaryIndigo.withValues(alpha: 0.2),
-                primaryIndigo.withValues(alpha: 0.1),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: borderColor),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(color: primaryIndigo.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(12)),
-                    child: Icon(Icons.business, color: primaryIndigo, size: 24),
-                  ),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(l10n.monthlyAccumulatedRollingCasino, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final list = r.casinoRollingByMonth;
-                  if (list.isEmpty) {
-                    return Padding(
+                  _sectionTitleBar(l10n.ongoingGames, isTablet),
+                  if (_loading)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 32),
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  else if (ongoing.isEmpty)
+                    Padding(
                       padding: const EdgeInsets.symmetric(vertical: 24),
-                      child: Center(child: Text('No data', style: TextStyle(fontSize: 14, color: Colors.grey[500]))),
-                    );
-                  }
-                  final maxRolling = list.map((e) => e.value).reduce((a, b) => a > b ? a : b).toDouble();
-                  final barHeight = 28.0;
-                  return SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        for (int i = 0; i < list.length; i++) ...[
-                          if (i > 0) const SizedBox(height: 12),
-                          _HorizontalCasinoBar(
-                            label: _monthLabel(context, list[i].monthKey),
-                            value: list[i].value,
-                            maxValue: maxRolling > 0 ? maxRolling : 1,
-                            barHeight: barHeight,
-                            animate: _chartAnimate,
-                          ),
+                      child: Center(
+                        child: Text(l10n.noOngoingGames,
+                            style: TextStyle(color: Colors.grey[500])),
+                      ),
+                    )
+                  else if (isTablet) ...[
+                    _tableHeader(isTablet),
+                    for (var i = 0; i < ongoing.length; i++)
+                      _ongoingRow(_rankOf(i), ongoing[i], isTablet, i.isOdd),
+                  ] else
+                    Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        children: [
+                          for (var i = 0; i < ongoing.length; i++)
+                            _ongoingCardMobile(_rankOf(i), ongoing[i]),
                         ],
-                      ],
+                      ),
                     ),
-                  );
-                },
+                ],
               ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSkeletonContent(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 21),
-          decoration: BoxDecoration(color: cardBg, borderRadius: BorderRadius.circular(16), border: Border.all(color: borderColor)),
-          child: const Row(
-            children: [
-              SkeletonBox(width: 28, height: 28, borderRadius: 10),
-              SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    SkeletonBox(height: 12, width: 180, borderRadius: 4),
-                    SizedBox(height: 6),
-                    SkeletonBox(height: 18, width: 100, borderRadius: 4),
-                  ],
-                ),
+            ),
+            const SizedBox(height: 20),
+            Container(
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: borderColor),
               ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final isWide = constraints.maxWidth > 700;
-            final card = Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 21),
-              decoration: BoxDecoration(color: cardBg, borderRadius: BorderRadius.circular(16), border: Border.all(color: borderColor)),
-              child: const Row(
+              clipBehavior: Clip.antiAlias,
+              child: Column(
                 children: [
-                  SkeletonBox(width: 24, height: 24, borderRadius: 8),
-                  SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                  _sectionTitleBar(
+                    l10n.settledGameLabel,
+                    isTablet,
+                    trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        SkeletonBox(height: 10, width: 120, borderRadius: 4),
-                        SizedBox(height: 6),
-                        SkeletonBox(height: 16, width: 80, borderRadius: 4),
+                        _toggleButton(l10n.todayLabel, _todaySelected,
+                            isTablet, () => setState(() => _todaySelected = true)),
+                        const SizedBox(width: 8),
+                        _toggleButton(l10n.yesterdayLabel, !_todaySelected,
+                            isTablet, () => setState(() => _todaySelected = false)),
                       ],
                     ),
                   ),
+                  _tableHeader(isTablet, showGuest: false),
+                  if (_loading)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 24),
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  else
+                    _settledRow(settled, isTablet),
                 ],
               ),
-            );
-            if (isWide) {
-              return GridView.count(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: 3,
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                childAspectRatio: 1.9,
-                children: List.generate(3, (_) => card),
-              );
-            }
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              children: List.generate(3, (_) => Padding(padding: const EdgeInsets.only(bottom: 12), child: card)),
-            );
-          },
-        ),
-        const SizedBox(height: 24),
-        Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: cardBg,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: borderColor),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Row(
-                children: [
-                  SkeletonBox(width: 40, height: 40, borderRadius: 12),
-                  SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SkeletonBox(height: 18, width: 160, borderRadius: 4),
-                      SizedBox(height: 4),
-                      SkeletonBox(height: 12, width: 200, borderRadius: 4),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              for (int i = 0; i < 4; i++) ...[
-                if (i > 0) const SizedBox(height: 12),
-                const Row(
-                  children: [
-                    SkeletonBox(width: 72, height: 22, borderRadius: 4),
-                    SizedBox(width: 12),
-                    Expanded(child: SkeletonBox(height: 28, borderRadius: 4)),
-                    SizedBox(width: 12),
-                    SkeletonBox(width: 56, height: 22, borderRadius: 4),
-                  ],
-                ),
-              ],
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ignore: non_constant_identifier_names
-  static Widget _HorizontalCasinoBar({required String label, required int value, required double maxValue, required double barHeight, bool animate = false}) {
-    final ratio = maxValue > 0 ? (value / maxValue) : 0.0;
-    return Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          SizedBox(
-            width: 72,
-            child: Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey[300])),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: LayoutBuilder(
-              builder: (context, c) {
-                final maxW = c.maxWidth;
-                final w = (animate ? maxW * ratio : 0.0).clamp(0.0, maxW);
-                return Stack(
-                  alignment: Alignment.centerLeft,
-                  children: [
-                    Container(
-                      height: barHeight,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.06),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 600),
-                      curve: Curves.easeOutCubic,
-                      width: w,
-                      height: barHeight,
-                      decoration: BoxDecoration(
-                        color: primaryIndigo,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                  ],
-                );
-              },
             ),
-          ),
-          const SizedBox(width: 12),
-          SizedBox(
-            width: 56,
-            child: Text(
-              '₱${_fmtCompact.format(value)}',
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: primaryIndigo),
-              textAlign: TextAlign.right,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-    );
-  }
-
-  Widget _metricCard(String title, String sub, String value, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 21),
-      decoration: BoxDecoration(
-        color: cardBg,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: borderColor),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Icon(icon, size: 24, color: color),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  sub,
-                  style: TextStyle(fontSize: 10, color: Colors.grey[400], fontWeight: FontWeight.w500),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+          ],
+        );
+      },
     );
   }
 }

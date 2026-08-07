@@ -4,63 +4,36 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../generated/app_localizations.dart';
-import '../models/realtime_data.dart';
-import '../services/realtime_service.dart';
-import '../models/types.dart';
+import '../main.dart';
+import '../models/dashboard_summary.dart';
+import '../models/monthly_statistics.dart';
+import '../services/dashboard_summary_service.dart';
+import '../services/monthly_statistics_service.dart';
 import '../theme/app_theme.dart';
-import '../widgets/active_view_scope.dart';
 import '../widgets/skeleton_box.dart';
 import '../widgets/stat_card.dart';
 
-final _fmt = NumberFormat.currency(locale: 'en_PH', symbol: '₱', decimalDigits: 0);
+final _fmt =
+    NumberFormat.currency(locale: 'en_PH', symbol: '₱', decimalDigits: 0);
 
-Widget _skeletonGameCard() {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.03),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: borderColor),
-      ),
-      child: const Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SkeletonBox(width: 38, height: 38, borderRadius: 10),
-          SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    SkeletonBox(width: 100, height: 14, borderRadius: 4),
-                    SkeletonBox(width: 50, height: 18, borderRadius: 10),
-                  ],
-                ),
-                SizedBox(height: 6),
-                SkeletonBox(width: 80, height: 10, borderRadius: 4),
-                SizedBox(height: 10),
-                Row(
-                  children: [
-                    SkeletonBox(width: 70, height: 14, borderRadius: 4),
-                    SizedBox(width: 12),
-                    SkeletonBox(width: 70, height: 14, borderRadius: 4),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+const _monthNamesEn = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+];
+
+String _monthLabel(String monthKey, Locale? locale) {
+  final parts = monthKey.split('-');
+  if (parts.length < 2) return monthKey;
+  final m = int.tryParse(parts[1]);
+  if (m == null || m < 1 || m > 12) return monthKey;
+  if (locale?.languageCode == 'en') return _monthNamesEn[m - 1];
+  return '$m월';
+}
 
 class RealTimeView extends StatefulWidget {
   const RealTimeView({super.key, this.onPollTick});
 
-  /// Called every time the realtime poll runs (same 3s). Use to sync e.g. notification fetch so toast/red dot update with ongoing games.
+  /// Called every 3s so other polled data (e.g. notifications) stays in sync while this tab is active.
   final VoidCallback? onPollTick;
 
   @override
@@ -68,236 +41,199 @@ class RealTimeView extends StatefulWidget {
 }
 
 class _RealTimeViewState extends State<RealTimeView> {
-  final RealtimeService _service = RealtimeService.instance;
-  RealtimeData _data = const RealtimeData.empty();
-  bool _loading = true;
   Timer? _pollTimer;
+  Timer? _summaryTimer;
+  DashboardSummary? _summary;
+  bool _loadingSummary = true;
 
   @override
   void initState() {
     super.initState();
-    _load();
-    // HTTP polling: refresh realtime data for UI. Notifications are created by server-side job only; app just fetches (GET).
     _pollTimer = Timer.periodic(const Duration(seconds: 3), (_) {
       if (!mounted) return;
       widget.onPollTick?.call();
-      _service.fetchRealtime().then((data) {
-        if (!mounted) return;
-        setState(() => _data = data);
-      });
+    });
+    _loadSummary();
+    _summaryTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+      _loadSummary();
     });
   }
 
-  Future<void> _load() async {
-    setState(() => _loading = true);
-    final data = await _service.fetchRealtime();
+  Future<void> _loadSummary() async {
+    final summary = await DashboardSummaryService.instance.fetchSummary();
     if (!mounted) return;
-    if (ActiveViewScope.find(context)?.activeView != ViewType.realTime) return;
     setState(() {
-      _data = data;
-      _loading = false;
+      _summary = summary;
+      _loadingSummary = false;
     });
   }
 
   @override
   void dispose() {
     _pollTimer?.cancel();
+    _summaryTimer?.cancel();
     super.dispose();
   }
 
-  Widget _buildSkeletonContent(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final crossAxisCount = constraints.maxWidth > 900 ? 6 : (constraints.maxWidth > 600 ? 3 : 2);
-            final isTabletWidth = constraints.maxWidth > 600 && constraints.maxWidth <= 1400;
-            final aspectRatio = isTabletWidth ? 1.65 : 1.95;
-            return GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: crossAxisCount,
-              mainAxisSpacing: 16,
-              crossAxisSpacing: 16,
-              childAspectRatio: aspectRatio,
-              children: List.generate(6, (_) => _skeletonStatCard()),
-            );
-          },
-        ),
-        const SizedBox(height: 24),
-        Container(
-          decoration: BoxDecoration(
-            color: cardBg,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: borderColor),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Padding(
-                padding: EdgeInsets.all(16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        SkeletonBox(width: 18, height: 18, borderRadius: 6),
-                        SizedBox(width: 8),
-                        SkeletonBox(width: 120, height: 16, borderRadius: 4),
-                      ],
-                    ),
-                    SkeletonBox(width: 36, height: 22, borderRadius: 20),
-                  ],
-                ),
-              ),
-              const Divider(height: 1, color: Colors.white12),
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: List.generate(6, (_) => _skeletonGameCard()),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
+  void _showStatisticsDialog() {
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.6),
+      builder: (context) => const _StatisticsDialog(),
     );
   }
 
-  Widget _skeletonStatCard() {
+  Widget _buildHighlightCard() {
+    final l10n = AppLocalizations.of(context);
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(26),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-        color: Colors.white.withValues(alpha: 0.03),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: emeraldAccent.withValues(alpha: 0.35)),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            emeraldAccent.withValues(alpha: 0.22),
+            emeraldAccent.withValues(alpha: 0.05)
+          ],
+        ),
       ),
-      child: const Column(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              SkeletonBox(width: 28, height: 28, borderRadius: 10),
-              SizedBox.shrink(),
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                    color: emeraldAccent.withValues(alpha: 0.25),
+                    shape: BoxShape.circle),
+                child: Icon(Icons.trending_up, size: 18, color: emeraldAccent),
+              ),
+              const Spacer(),
+              Material(
+                color: surfaceDarkStart.withValues(alpha: 0.6),
+                borderRadius: BorderRadius.circular(20),
+                child: InkWell(
+                  onTap: _showStatisticsDialog,
+                  borderRadius: BorderRadius.circular(20),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 18, vertical: 10),
+                    child: Text(l10n.statisticsLabel,
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600)),
+                  ),
+                ),
+              ),
             ],
           ),
-          SizedBox(height: 8),
-          SkeletonBox(width: 70, height: 10, borderRadius: 4),
-          SizedBox(height: 8),
-          SkeletonBox(width: 90, height: 18, borderRadius: 4),
+          const SizedBox(height: 22),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              // Wider (tablet) card: push the pair further apart. Narrow (mobile): keep it tight so text doesn't overflow.
+              final dividerMargin =
+                  ((constraints.maxWidth - 260) * 0.3).clamp(20.0, 90.0);
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(l10n.winLossLabel,
+                          style: TextStyle(
+                              fontSize: 15,
+                              color: Colors.grey[400],
+                              fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 6),
+                      _amountText(_summary?.winLoss,
+                          fontSize: 24, color: Colors.white),
+                    ],
+                  ),
+                  Container(
+                    width: 1,
+                    height: 44,
+                    margin: EdgeInsets.symmetric(horizontal: dividerMargin),
+                    color: Colors.white.withValues(alpha: 0.15),
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(l10n.ngrLabel,
+                          style: TextStyle(
+                              fontSize: 15,
+                              color: Colors.grey[400],
+                              fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 6),
+                      _amountText(_summary?.ngr,
+                          fontSize: 24, color: Colors.white),
+                    ],
+                  ),
+                ],
+              );
+            },
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildMobileGameCard(AppLocalizations l10n, OngoingGame game) {
-    final statusLabel = game.status == 'Active' ? l10n.statusActive : l10n.statusSettling;
-    final nameMatch = RegExp(r'^(.+?)\s*\(([^)]+)\)\s*$').firstMatch(game.account);
-    final displayName = nameMatch != null ? nameMatch.group(1)!.trim() : game.account;
-    final codeSubtitle = nameMatch?.group(2)!.trim();
-    
+  Widget _amountText(int? value,
+      {required double fontSize, required Color color}) {
+    if (_loadingSummary || value == null) {
+      return SkeletonBox(width: fontSize * 4, height: fontSize * 1.1);
+    }
+    return Text(_fmt.format(value),
+        style: TextStyle(
+            fontSize: fontSize, fontWeight: FontWeight.bold, color: color));
+  }
+
+  Widget _wideStatCard(
+      {required IconData icon,
+      required Color color,
+      required String label,
+      String? subLabel,
+      required int? value}) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 22),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.03),
-        borderRadius: BorderRadius.circular(12),
+        color: cardBg,
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: borderColor),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Trophy/Status Icon
           Container(
-            width: 38,
-            height: 38,
+            width: 46,
+            height: 46,
             decoration: BoxDecoration(
-              color: game.status == 'Active' ? emeraldAccent.withValues(alpha: 0.2) : amberAccent.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              game.status == 'Active' ? Icons.emoji_events : Icons.pending,
-              color: game.status == 'Active' ? emeraldAccent : amberAccent,
-              size: 20,
-            ),
+                color: color.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(12)),
+            child: Icon(icon, size: 22, color: color),
           ),
-          const SizedBox(width: 10),
-          // Name and stats column
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Name and Status row
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(displayName, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white)),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: game.status == 'Active' ? emeraldAccent.withValues(alpha: 0.2) : amberAccent.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        statusLabel,
-                        style: TextStyle(
-                          fontSize: 9,
-                          color: game.status == 'Active' ? emeraldAccent : amberAccent,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 3),
-                // Code and Game Type
-                Row(
-                  children: [
-                    if (codeSubtitle != null) ...[
-                      Text(codeSubtitle, style: TextStyle(fontSize: 10, color: Colors.grey[500], fontWeight: FontWeight.w500)),
-                      const SizedBox(width: 6),
-                      Text('•', style: TextStyle(fontSize: 10, color: Colors.grey[600])),
-                      const SizedBox(width: 6),
-                    ],
-                    Text(game.gameType, style: TextStyle(fontSize: 10, color: Colors.grey[500], fontWeight: FontWeight.w500)),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                // Buy In and Cash Out row
-                Row(
-                  children: [
-                    // Buy In
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(l10n.buyIn.toUpperCase(), style: TextStyle(fontSize: 8, fontWeight: FontWeight.w900, color: Colors.grey[500], letterSpacing: 0.5)),
-                          const SizedBox(height: 3),
-                          Text(_fmt.format(game.buyIn), style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: primaryIndigo)),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    // Cash Out
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(l10n.cashOut.toUpperCase(), style: TextStyle(fontSize: 8, fontWeight: FontWeight.w900, color: Colors.grey[500], letterSpacing: 0.5)),
-                          const SizedBox(height: 3),
-                          Text(_fmt.format(game.cashOut), style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: amberAccent)),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+          const SizedBox(width: 14),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label,
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[400],
+                      fontWeight: FontWeight.w600)),
+              if (subLabel != null)
+                Text(subLabel,
+                    style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w500)),
+              const SizedBox(height: 4),
+              _amountText(value, fontSize: 19, color: Colors.white),
+            ],
           ),
         ],
       ),
@@ -307,125 +243,216 @@ class _RealTimeViewState extends State<RealTimeView> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    if (_loading && _data.ongoingGames.isEmpty) {
-      return _buildSkeletonContent(context);
-    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        _buildHighlightCard(),
+        const SizedBox(height: 18),
         LayoutBuilder(
           builder: (context, constraints) {
-            final crossAxisCount = constraints.maxWidth > 900 ? 6 : (constraints.maxWidth > 600 ? 3 : 2);
-            final isTabletWidth = constraints.maxWidth > 600 && constraints.maxWidth <= 1400;
-            final aspectRatio = isTabletWidth ? 1.65 : 1.95;
-            final houseBalance = _data.totalChips + _data.cashBalance;
             return GridView.count(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: crossAxisCount,
-              mainAxisSpacing: 16,
-              crossAxisSpacing: 16,
-              childAspectRatio: aspectRatio,
+              crossAxisCount: 3,
+              mainAxisSpacing: 14,
+              crossAxisSpacing: 14,
+              childAspectRatio: 0.95,
               children: [
                 StatCard(
-                  label: l10n.totalChips,
-                  value: _fmt.format(_data.totalChips),
-                  icon: Icons.monetization_on,
-                  color: StatCardColor.primary,
-                ),
-                StatCard(
-                  label: l10n.cashBalance,
-                  value: _fmt.format(_data.cashBalance),
-                  icon: Icons.payments,
-                  color: StatCardColor.emerald,
-                ),
-                StatCard(
-                  label: l10n.houseBalance,
-                  value: _fmt.format(houseBalance),
-                  icon: Icons.home_work,
-                  color: StatCardColor.brown,
-                ),
-                StatCard(
-                  label: l10n.netJunketCash,
-                  value: _fmt.format(_data.netJunketCash),
+                  label: l10n.totalCommissionLabel,
+                  value: '',
+                  valueWidget: _amountText(_summary?.totalCommission,
+                      fontSize: 24, color: Colors.white),
                   icon: Icons.account_balance_wallet,
-                  color: StatCardColor.rose,
-                ),
-                StatCard(
-                  label: l10n.netJunketMoney,
-                  value: _fmt.format(_data.netJunketMoney),
-                  icon: Icons.account_balance,
                   color: StatCardColor.amber,
+                  centered: true,
                 ),
                 StatCard(
-                  label: l10n.guestBalance,
-                  value: _fmt.format(_data.guestBalance),
-                  icon: Icons.people,
+                  label: l10n.gameCommissionLabel,
+                  value: '',
+                  valueWidget: _amountText(_summary?.gameCommission,
+                      fontSize: 24, color: Colors.white),
+                  icon: Icons.casino,
+                  color: StatCardColor.teal,
+                  centered: true,
+                ),
+                StatCard(
+                  label: l10n.additionalCommissionLabel,
+                  value: '',
+                  valueWidget: _amountText(_summary?.additionalCommission,
+                      fontSize: 24, color: Colors.white),
+                  icon: Icons.layers,
                   color: StatCardColor.purple,
+                  centered: true,
                 ),
               ],
             );
           },
         ),
-        const SizedBox(height: 24),
-        Container(
-          decoration: BoxDecoration(
-            color: cardBg,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: borderColor),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
+        const SizedBox(height: 14),
+        _wideStatCard(
+            icon: Icons.shield,
+            color: roseAccent,
+            label: l10n.accumulatedExpenses,
+            subLabel: l10n.mtdExpenditure,
+            value: _summary?.expenses),
+        const SizedBox(height: 14),
+        _wideStatCard(
+            icon: Icons.videogame_asset,
+            color: primaryIndigo,
+            label: l10n.cageRollingLabel,
+            value: _summary?.cageRolling),
+        const SizedBox(height: 14),
+        _wideStatCard(
+            icon: Icons.casino,
+            color: primaryIndigo,
+            label: l10n.casinoRollingLabel,
+            value: _summary?.casinoRolling),
+      ],
+    );
+  }
+}
+
+class _StatisticsDialog extends StatefulWidget {
+  const _StatisticsDialog();
+
+  @override
+  State<_StatisticsDialog> createState() => _StatisticsDialogState();
+}
+
+class _StatisticsDialogState extends State<_StatisticsDialog> {
+  MonthlyStatistics? _stats;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final stats = await MonthlyStatisticsService.instance.fetchStatistics();
+    if (!mounted) return;
+    setState(() {
+      _stats = stats;
+      _loading = false;
+    });
+  }
+
+  static const _monthColumnWidth = 34.0;
+
+  Widget _headerCell(String text) => Expanded(
+        child: Text(text,
+            textAlign: TextAlign.end,
+            style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[400])),
+      );
+
+  Widget _monthCell(String month) => SizedBox(
+        width: _monthColumnWidth,
+        child: Text(month,
+            style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: Colors.white)),
+      );
+
+  Widget _valueCell(int value, Color color) {
+    String text;
+    if (value == 0) {
+      text = '0';
+    } else if (value.abs() < 1000) {
+      // Small non-zero amounts (e.g. ₱450) would round to "0K" and look identical to an
+      // actually-zero month — show the exact figure instead of abbreviating.
+      text = NumberFormat.decimalPattern().format(value);
+    } else {
+      text = '${NumberFormat.decimalPattern().format((value / 1000).round())}K';
+    }
+    return Expanded(
+      child: Text(
+        text,
+        textAlign: TextAlign.end,
+        style:
+            TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: color),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final locale = AppLocaleScope.of(context).locale;
+    final year = locale?.languageCode == 'en'
+        ? '${DateTime.now().year}'
+        : '${DateTime.now().year}년';
+    final months = _stats?.months ?? const [];
+    return Dialog(
+      backgroundColor: surfaceDarkMid,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(year,
+                style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white)),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                const SizedBox(width: _monthColumnWidth),
+                _headerCell(l10n.winLossLabel),
+                _headerCell(l10n.shareLabel),
+                _headerCell(l10n.commissionLabel),
+                _headerCell(l10n.expensesLabel),
+                _headerCell(l10n.ngrLabel),
+              ],
+            ),
+            const SizedBox(height: 10),
+            const Divider(height: 1, color: Colors.white12),
+            if (_loading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 32),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (months.isEmpty)
               Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                padding: const EdgeInsets.symmetric(vertical: 24),
+                child: Center(
+                  child: Text(l10n.noDataYet,
+                      style: TextStyle(color: Colors.grey[500])),
+                ),
+              )
+            else
+              for (final s in months) ...[
+                const SizedBox(height: 14),
+                Row(
                   children: [
-                    Row(
-                      children: [
-                        Icon(Icons.show_chart, size: 18, color: primaryIndigo),
-                        const SizedBox(width: 8),
-                        Text(l10n.ongoingGames, style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white)),
-                      ],
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(color: primaryIndigo.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(20)),
-                      child: Text(l10n.live, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: primaryIndigo)),
-                    ),
+                    _monthCell(_monthLabel(s.monthKey, locale)),
+                    _valueCell(s.winLoss, amberAccent),
+                    _valueCell(s.share, roseAccent),
+                    _valueCell(s.commission, roseAccent),
+                    _valueCell(s.expenses, amberAccent),
+                    _valueCell(s.ngr, Colors.white),
                   ],
                 ),
-              ),
-              const Divider(height: 1, color: Colors.white12),
-              Builder(
-                builder: (context) {
-                  // Newest first: sort by table (encoded_dt) descending so new games appear at top
-                  final games = List<OngoingGame>.from(_data.ongoingGames)
-                    ..sort((a, b) => b.table.compareTo(a.table));
-                  if (games.isEmpty) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
-                      child: Center(
-                        child: Text(
-                          l10n.noGamesToday,
-                          style: TextStyle(fontSize: 15, color: Colors.grey[500], fontWeight: FontWeight.w500),
-                        ),
-                      ),
-                    );
-                  }
-                  return Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      children: games.map((g) => _buildMobileGameCard(l10n, g)).toList(),
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
+                const SizedBox(height: 14),
+                const Divider(height: 1, color: Colors.white12),
+              ],
+            const SizedBox(height: 4),
+            Center(
+              child: Icon(Icons.keyboard_double_arrow_down,
+                  color: primaryIndigo, size: 22),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
