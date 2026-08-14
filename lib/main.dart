@@ -70,7 +70,7 @@ class _AppCageAppState extends State<AppCageApp> {
       locale: _locale,
       setLocale: _setLocale,
       child: MaterialApp(
-        title: 'Infinity Cage X',
+        title: 'Golden Dragon',
         debugShowCheckedModeBanner: false,
         theme: appTheme,
         locale: _locale,

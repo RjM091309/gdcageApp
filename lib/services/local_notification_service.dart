@@ -9,7 +9,7 @@ class LocalNotificationService {
   static final LocalNotificationService instance = LocalNotificationService._();
 
   static const _channelId = 'cage_app_notifications';
-  static const _channelName = 'Infinity Cage X';
+  static const _channelName = 'Golden Dragon';
 
   final FlutterLocalNotificationsPlugin _plugin = FlutterLocalNotificationsPlugin();
   bool _initialized = false;

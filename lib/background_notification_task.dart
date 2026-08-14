@@ -38,7 +38,7 @@ void callbackDispatcher() {
       );
       const channel = AndroidNotificationChannel(
         'cage_app_notifications',
-        'Infinity Cage X',
+        'Golden Dragon',
         description: 'Executive dashboard alerts',
         importance: Importance.defaultImportance,
         playSound: true,
@@ -53,7 +53,7 @@ void callbackDispatcher() {
       final body = latest['message']?.toString() ?? '';
       const details = AndroidNotificationDetails(
         'cage_app_notifications',
-        'Infinity Cage X',
+        'Golden Dragon',
         channelDescription: 'Executive dashboard alerts',
         importance: Importance.defaultImportance,
         priority: Priority.defaultPriority,

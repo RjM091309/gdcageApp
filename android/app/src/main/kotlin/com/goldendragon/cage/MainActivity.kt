@@ -1,4 +1,4 @@
-package com.example.appcage_flutter
+package com.goldendragon.cage
 
 import io.flutter.embedding.android.FlutterFragmentActivity
 

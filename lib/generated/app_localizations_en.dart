@@ -342,7 +342,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get signInWithFingerprint => 'Sign in with fingerprint';
 
   @override
-  String get fingerprintReason => 'Sign in to Infinity Cage X';
+  String get fingerprintReason => 'Sign in to Golden Dragon';
 
   @override
   String get fingerprintNotAvailable =>

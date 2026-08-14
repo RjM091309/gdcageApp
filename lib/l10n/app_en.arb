@@ -123,7 +123,7 @@
   "errorAdminOnlyAccess": "Only administrators can access this app.",
   "useFingerprint": "Use fingerprint to sign in",
   "signInWithFingerprint": "Sign in with fingerprint",
-  "fingerprintReason": "Sign in to Infinity Cage X",
+  "fingerprintReason": "Sign in to Golden Dragon",
   "fingerprintNotAvailable": "Fingerprint is not available on this device.",
   "fingerprintTryAgain": "Fingerprint sign-in didn't complete. Please try again.",
   "fingerprintSetupHint": "On Android, add a fingerprint in Settings > Security. It won't appear in app permissions.",

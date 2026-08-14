@@ -109,7 +109,7 @@
   "errorAdminOnlyAccess": "관리자만 이 앱에 접근할 수 있습니다.",
   "useFingerprint": "지문으로 로그인",
   "signInWithFingerprint": "지문으로 로그인",
-  "fingerprintReason": "Infinity Cage X에 로그인",
+  "fingerprintReason": "Golden Dragon에 로그인",
   "fingerprintNotAvailable": "이 기기에서는 지문을 사용할 수 없습니다.",
   "fingerprintTryAgain": "지문 로그인이 완료되지 않았습니다. 다시 시도해 주세요.",
   "fingerprintSetupHint": "Android에서는 설정 > 보안에서 지문을 등록하세요. 앱 권한 목록에는 표시되지 않습니다.",

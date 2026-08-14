@@ -755,7 +755,7 @@ abstract class AppLocalizations {
   /// No description provided for @fingerprintReason.
   ///
   /// In en, this message translates to:
-  /// **'Sign in to Infinity Cage X'**
+  /// **'Sign in to Golden Dragon'**
   String get fingerprintReason;
 
   /// No description provided for @fingerprintNotAvailable.

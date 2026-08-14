@@ -340,7 +340,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get signInWithFingerprint => '지문으로 로그인';
 
   @override
-  String get fingerprintReason => 'Infinity Cage X에 로그인';
+  String get fingerprintReason => 'Golden Dragon에 로그인';
 
   @override
   String get fingerprintNotAvailable => '이 기기에서는 지문을 사용할 수 없습니다.';
