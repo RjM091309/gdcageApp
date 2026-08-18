@@ -436,16 +436,13 @@ class _RankingViewState extends State<RankingView> {
         final labelSize = isVerySmall ? 8.0 : 9.0;
         final valueSize = isVerySmall ? 12.0 : 14.0;
         final spacing = isVerySmall ? 8.0 : 12.0;
-        final rowSpacing = isVerySmall ? 16.0 : 20.0;
-        
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // First Row: Rank Icon + Name
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // Rank Icon
                 SizedBox(
                   width: iconSize,
                   height: iconSize,
@@ -471,7 +468,6 @@ class _RankingViewState extends State<RankingView> {
                   ),
                 ),
                 SizedBox(width: spacing),
-                // Name
                 Expanded(
                   child: Text(
                     displayName,
@@ -484,38 +480,33 @@ class _RankingViewState extends State<RankingView> {
                     maxLines: 1,
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            // Second Row: INF399, WinLoss, Rolling Volume, Commission
-            Row(
-              children: [
-                SizedBox(width: iconSize + spacing), // Offset to align with name
-                // Blue box - INF399
                 if (codeSubtitle != null) ...[
-                  Flexible(
-                    flex: 0,
-                    child: Container(
-                      padding: EdgeInsets.symmetric(horizontal: isVerySmall ? 6 : 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: primaryIndigo.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: primaryIndigo.withValues(alpha: 0.3)),
-                      ),
-                      child: Text(
-                        codeSubtitle,
-                        style: TextStyle(
-                          fontSize: codeSize,
-                          color: primaryIndigo,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        overflow: TextOverflow.ellipsis,
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: isVerySmall ? 8 : 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: primaryIndigo.withValues(alpha: 0.4),
+                      borderRadius: BorderRadius.circular(10),
+                      boxShadow: [
+                        BoxShadow(color: primaryIndigo.withValues(alpha: 0.35), blurRadius: 10),
+                      ],
+                    ),
+                    child: Text(
+                      codeSubtitle,
+                      style: TextStyle(
+                        fontSize: codeSize,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.4,
                       ),
                     ),
                   ),
-                  SizedBox(width: rowSpacing),
                 ],
-                // WinLoss
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
                 Expanded(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -527,8 +518,8 @@ class _RankingViewState extends State<RankingView> {
                           l10n.winLoss.toUpperCase(),
                           style: TextStyle(
                             fontSize: labelSize,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.grey[400],
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white.withValues(alpha: 0.4),
                             letterSpacing: 0.5,
                           ),
                         ),
@@ -561,8 +552,8 @@ class _RankingViewState extends State<RankingView> {
                           l10n.rollingVolume.toUpperCase(),
                           style: TextStyle(
                             fontSize: labelSize,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.grey[400],
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white.withValues(alpha: 0.4),
                             letterSpacing: 0.5,
                           ),
                         ),
@@ -595,8 +586,8 @@ class _RankingViewState extends State<RankingView> {
                           l10n.commission.toUpperCase(),
                           style: TextStyle(
                             fontSize: labelSize,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.grey[400],
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white.withValues(alpha: 0.4),
                             letterSpacing: 0.5,
                           ),
                         ),

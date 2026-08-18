@@ -5,6 +5,7 @@ import '../generated/app_localizations.dart';
 import '../models/dashboard_statement.dart';
 import '../services/dashboard_statement_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/fold_layout.dart';
 
 final _fmt = NumberFormat.decimalPattern('en_US');
 
@@ -89,21 +90,27 @@ class _DailySettlementViewState extends State<DailySettlementView> {
     });
   }
 
-  Widget _row(_StatementRow row, bool isTablet) {
+  Widget _row(_StatementRow row, bool isWide) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+      padding: EdgeInsets.symmetric(horizontal: isWide ? 16 : 10),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(row.label,
-              style: TextStyle(
-                  fontSize: isTablet ? 19 : 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey[300])),
+          Expanded(
+            child: Text(row.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    fontSize: isWide ? 14 : 12,
+                    fontWeight: FontWeight.w600,
+                    height: 1.1,
+                    color: Colors.grey[300])),
+          ),
+          const SizedBox(width: 8),
           Text(row.value,
               style: TextStyle(
-                  fontSize: isTablet ? 19 : 16,
+                  fontSize: isWide ? 14 : 12,
                   fontWeight: FontWeight.bold,
+                  height: 1.1,
                   color: row.negative ? roseAccent : Colors.white)),
         ],
       ),
@@ -114,13 +121,15 @@ class _DailySettlementViewState extends State<DailySettlementView> {
     return Container(
       width: double.infinity,
       color: primaryIndigo.withValues(alpha: 0.14),
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: 4),
       alignment: Alignment.center,
       child: Text(title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: TextStyle(
-              fontSize: isTablet ? 15 : 13,
+              fontSize: isTablet ? 13 : 11,
               fontWeight: FontWeight.w800,
-              letterSpacing: 1.2,
+              letterSpacing: 1.0,
               color: accentPurple)),
     );
   }
@@ -133,45 +142,52 @@ class _DailySettlementViewState extends State<DailySettlementView> {
         final isTablet = constraints.maxWidth > 500;
         final sections =
             _buildSections(_statement ?? const DashboardStatement.empty(), l10n);
-        return Transform.translate(
-          offset: const Offset(0, -6),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Container(
-                decoration: BoxDecoration(
-                  color: surfaceDarkStart,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: borderColor),
-                ),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                alignment: Alignment.center,
-                child: Text(l10n.mainLabel,
-                    style: TextStyle(
-                        fontSize: isTablet ? 18 : 15,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1,
-                        color: Colors.white)),
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                color: surfaceDarkStart,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: borderColor),
               ),
-              const SizedBox(height: 12),
-              if (_loading)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 40),
-                  child: Center(child: CircularProgressIndicator()),
-                )
-              else
-                for (final section in sections) ...[
-                  if (section.title != null)
-                    _sectionTitle(section.title!, isTablet),
-                  for (final row in section.rows) ...[
-                    _row(row, isTablet),
-                    const Divider(height: 1, color: Colors.white12),
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              alignment: Alignment.center,
+              child: Text(l10n.mainLabel,
+                  style: TextStyle(
+                      fontSize: isTablet ? 16 : 14,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1,
+                      color: Colors.white)),
+            ),
+            const SizedBox(height: 6),
+            if (_loading)
+              const Expanded(
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else
+              Expanded(
+                child: Column(
+                  children: [
+                    for (final section in sections) ...[
+                      if (section.title != null) _sectionTitle(section.title!, isTablet),
+                      for (final row in section.rows)
+                        Expanded(
+                          child: Column(
+                            children: [
+                              Expanded(child: Align(alignment: Alignment.center, child: _row(row, isTablet))),
+                              const Divider(height: 1, color: Colors.white12),
+                            ],
+                          ),
+                        ),
+                    ],
                   ],
-                ],
-            ],
-          ),
+                ),
+              ),
+          ],
         );
       },
     );
   }
 }
+

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../generated/app_localizations.dart';
@@ -6,15 +7,22 @@ import '../models/monthly_games.dart';
 import '../services/monthly_games_service.dart';
 import '../theme/app_theme.dart';
 
-String _kFmt(int value) {
-  if (value == 0) return '0';
-  // Small non-zero amounts (e.g. ₱450) would round to "0K" and look identical to an actually
-  // zero value — show the exact figure instead of abbreviating.
-  if (value.abs() < 1000) return NumberFormat.decimalPattern().format(value);
-  return '${NumberFormat.decimalPattern().format((value / 1000).round())}K';
+String _peso(int value) {
+  final abs = value.abs();
+  final body = abs < 1000
+      ? NumberFormat.decimalPattern().format(abs)
+      : '${NumberFormat.decimalPattern().format((abs / 1000).round())}K';
+  if (value < 0) return '-₱$body';
+  return '₱$body';
 }
 
 String _rankOf(int index) => index.toString().padLeft(2, '0');
+
+(String name, String? code) _splitAccount(String account) {
+  final m = RegExp(r'^(.*)\s*\(([^)]+)\)\s*$').firstMatch(account.trim());
+  if (m == null) return (account, null);
+  return (m.group(1)!.trim(), m.group(2)!.trim());
+}
 
 class MonthlyView extends StatefulWidget {
   const MonthlyView({super.key});
@@ -27,12 +35,6 @@ class _MonthlyViewState extends State<MonthlyView> {
   bool _todaySelected = true;
   MonthlyGames? _games;
   bool _loading = true;
-
-  // Uniform text scale: matches the row/section font sizes used on the Weekly (statement) tab.
-  static const _rowFontMobile = 16.0;
-  static const _rowFontTablet = 19.0;
-  static const _headerFontMobile = 14.0;
-  static const _headerFontTablet = 16.0;
 
   @override
   void initState() {
@@ -49,84 +51,75 @@ class _MonthlyViewState extends State<MonthlyView> {
     });
   }
 
-  Widget _sectionTitleBar(String text, bool isTablet, {Widget? trailing}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: primaryIndigo.withValues(alpha: 0.28),
-        border: Border(bottom: BorderSide(color: borderColor)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(text,
-              style: TextStyle(
-                  fontSize: isTablet ? _headerFontTablet : _headerFontMobile,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white)),
-          if (trailing != null) trailing,
-        ],
-      ),
-    );
-  }
-
-  Widget _toggleButton(
-      String label, bool selected, bool isTablet, VoidCallback onTap) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            color:
-                selected ? primaryIndigo : Colors.white.withValues(alpha: 0.06),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-                color: selected
-                    ? primaryIndigo
-                    : Colors.white.withValues(alpha: 0.12)),
-          ),
-          child: Text(label,
-              style: TextStyle(
-                  fontSize: isTablet ? _headerFontTablet : _headerFontMobile,
-                  fontWeight: FontWeight.w700,
-                  color: selected ? Colors.white : Colors.grey[400])),
+  Widget _segmentTrack({required List<Widget> children}) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.04),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: borderColor),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.2),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
+        child: Row(children: children),
       ),
     );
   }
 
-  Widget _tableHeader(bool isTablet, {bool showGuest = true}) {
-    final l10n = AppLocalizations.of(context);
-    final fontSize = isTablet ? _headerFontTablet : _headerFontMobile;
-    final style = TextStyle(
-        fontSize: fontSize,
-        fontWeight: FontWeight.w700,
-        letterSpacing: 0.4,
-        color: Colors.grey[400]);
-    return Container(
-      color: Colors.white.withValues(alpha: 0.03),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      child: Row(
-        children: [
-          const SizedBox(width: 40),
-          if (showGuest)
-            Expanded(flex: 2, child: Text(l10n.guestLabel, style: style)),
-          Expanded(
-              child:
-                  Text(l10n.buyIn, textAlign: TextAlign.end, style: style)),
-          Expanded(
-              child:
-                  Text(l10n.cashOut, textAlign: TextAlign.end, style: style)),
-          Expanded(
-              child: Text(l10n.commissionLabel,
-                  textAlign: TextAlign.end, style: style)),
-          Expanded(
-              child: Text(l10n.winLossLabel,
-                  textAlign: TextAlign.end, style: style)),
-        ],
+  Widget _segment(
+    String label, {
+    required bool selected,
+    VoidCallback? onTap,
+    bool isFirst = false,
+    bool isLast = false,
+  }) {
+    return Expanded(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.horizontal(
+            left: Radius.circular(isFirst ? 14 : 4),
+            right: Radius.circular(isLast ? 14 : 4),
+          ),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: selected ? primaryIndigo.withValues(alpha: 0.4) : Colors.transparent,
+              borderRadius: BorderRadius.horizontal(
+                left: Radius.circular(isFirst ? 14 : 4),
+                right: Radius.circular(isLast ? 14 : 4),
+              ),
+              boxShadow: selected
+                  ? [
+                      BoxShadow(
+                        color: primaryIndigo.withValues(alpha: 0.4),
+                        blurRadius: 12,
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Text(
+              label.toUpperCase(),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 11,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                color: selected ? Colors.white : Colors.white.withValues(alpha: 0.75),
+                letterSpacing: 0.6,
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -137,178 +130,182 @@ class _MonthlyViewState extends State<MonthlyView> {
       height: 26,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: amberAccent.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(7),
+        color: primaryIndigo.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: primaryIndigo.withValues(alpha: 0.28)),
       ),
-      child: Text(rank,
-          style: TextStyle(
-              fontSize: 11, fontWeight: FontWeight.bold, color: amberAccent)),
+      child: Text(
+        rank,
+        style: GoogleFonts.plusJakartaSans(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          color: accentPurple,
+          letterSpacing: 0.4,
+        ),
+      ),
     );
   }
 
-  Widget _ongoingRow(String rank, OngoingGameRow row, bool isTablet, bool striped) {
-    final fontSize = isTablet ? _rowFontTablet : _rowFontMobile;
-    return Container(
-      color: striped ? Colors.white.withValues(alpha: 0.02) : null,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-      child: Row(
+  Widget _metric(String label, String value, Color valueColor) {
+    return Expanded(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          _rankBadge(rank),
-          const SizedBox(width: 14),
-          Expanded(
-              flex: 2,
-              child: Text(row.account,
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
-                  style: TextStyle(
-                      fontSize: fontSize,
-                      fontWeight: FontWeight.bold,
-                      color: tealAccent))),
-          Expanded(
-              child: Text(_kFmt(row.buyIn),
-                  textAlign: TextAlign.end,
-                  style: TextStyle(
-                      fontSize: fontSize,
-                      fontWeight: FontWeight.bold,
-                      color: roseAccent))),
-          Expanded(
-              child: Text(_kFmt(row.cashOut),
-                  textAlign: TextAlign.end,
-                  style: TextStyle(
-                      fontSize: fontSize,
-                      fontWeight: FontWeight.bold,
-                      color: roseAccent))),
-          Expanded(
-              child: Text(_kFmt(row.commission),
-                  textAlign: TextAlign.end,
-                  style: TextStyle(
-                      fontSize: fontSize,
-                      fontWeight: FontWeight.bold,
-                      color: amberAccent))),
-          Expanded(
-              child: Text(_kFmt(row.winLoss),
-                  textAlign: TextAlign.end,
-                  style: TextStyle(
-                      fontSize: fontSize,
-                      fontWeight: FontWeight.bold,
-                      color: accentPurple))),
+          Text(
+            label.toUpperCase(),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 7,
+              fontWeight: FontWeight.w500,
+              color: Colors.white.withValues(alpha: 0.38),
+              letterSpacing: 1.1,
+            ),
+          ),
+          const SizedBox(height: 3),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              value,
+              maxLines: 1,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: valueColor,
+                height: 1.1,
+                letterSpacing: -0.3,
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _miniStat(String label, String value, Color color) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _metricsRow({
+    required String buyIn,
+    required String cashOut,
+    required String commission,
+    required String winLoss,
+    required Color winLossColor,
+  }) {
+    final l10n = AppLocalizations.of(context);
+    Widget sep() => Container(
+          width: 1,
+          height: 22,
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          color: Colors.white.withValues(alpha: 0.06),
+        );
+    return Row(
       children: [
-        Text(label.toUpperCase(),
-            style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 0.5,
-                color: Colors.grey[500])),
-        const SizedBox(height: 3),
-        Text(value,
-            style: TextStyle(
-                fontSize: 15, fontWeight: FontWeight.bold, color: color)),
+        _metric(l10n.buyIn, buyIn, Colors.white.withValues(alpha: 0.92)),
+        sep(),
+        _metric(l10n.cashOut, cashOut, Colors.white.withValues(alpha: 0.92)),
+        sep(),
+        _metric(l10n.commissionLabel, commission, Colors.white.withValues(alpha: 0.92)),
+        sep(),
+        _metric(l10n.winLossLabel, winLoss, winLossColor),
       ],
     );
   }
 
-  /// Narrow screens can't fit a 6-column table without wrapping, so show each
-  /// game as a card with a 2-column stat grid instead.
-  Widget _ongoingCardMobile(String rank, OngoingGameRow row) {
-    final l10n = AppLocalizations.of(context);
+  Widget _gameCard({
+    required String rank,
+    required String title,
+    String? code,
+    required OngoingGameRow? row,
+    SettledGameTotals? totals,
+  }) {
+    final buyIn = row?.buyIn ?? totals!.buyIn;
+    final cashOut = row?.cashOut ?? totals!.cashOut;
+    final commission = row?.commission ?? totals!.commission;
+    final winLoss = row?.winLoss ?? totals!.winLoss;
+    final winLossColor = winLoss == 0
+        ? Colors.white.withValues(alpha: 0.92)
+        : (winLoss < 0 ? roseAccent : emeraldAccent);
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+      constraints: const BoxConstraints(maxHeight: 118),
       decoration: BoxDecoration(
-        color: cardBg,
+        color: const Color(0xFF12121F).withValues(alpha: 0.72),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: borderColor),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _rankBadge(rank),
-              const SizedBox(width: 10),
-              Flexible(
-                child: Text(row.account,
-                    overflow: TextOverflow.ellipsis,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                _rankBadge(rank),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    title,
                     maxLines: 1,
-                    style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: tealAccent)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                  child: _miniStat(l10n.buyIn, _kFmt(row.buyIn), roseAccent)),
-              Expanded(
-                  child: _miniStat(
-                      l10n.cashOut, _kFmt(row.cashOut), roseAccent)),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                  child: _miniStat(l10n.commissionLabel,
-                      _kFmt(row.commission), amberAccent)),
-              Expanded(
-                  child: _miniStat(l10n.winLossLabel, _kFmt(row.winLoss),
-                      accentPurple)),
-            ],
-          ),
-        ],
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                ),
+                if (code != null) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: primaryIndigo.withValues(alpha: 0.16),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      code,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w600,
+                        color: accentPurple,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            const SizedBox(height: 8),
+            Divider(height: 1, color: Colors.white.withValues(alpha: 0.06)),
+            const SizedBox(height: 8),
+            _metricsRow(
+              buyIn: _peso(buyIn),
+              cashOut: _peso(cashOut),
+              commission: _peso(commission),
+              winLoss: _peso(winLoss),
+              winLossColor: winLossColor,
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _settledRow(SettledGameTotals totals, bool isTablet) {
-    final fontSize = isTablet ? _rowFontTablet : _rowFontMobile;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-      child: Row(
-        children: [
-          _rankBadge(_rankOf(totals.gameCount)),
-          const SizedBox(width: 14),
-          Expanded(
-              child: Text(_kFmt(totals.buyIn),
-                  textAlign: TextAlign.end,
-                  style: TextStyle(
-                      fontSize: fontSize,
-                      fontWeight: FontWeight.bold,
-                      color: roseAccent))),
-          Expanded(
-              child: Text(_kFmt(totals.cashOut),
-                  textAlign: TextAlign.end,
-                  style: TextStyle(
-                      fontSize: fontSize,
-                      fontWeight: FontWeight.bold,
-                      color: roseAccent))),
-          Expanded(
-              child: Text(_kFmt(totals.commission),
-                  textAlign: TextAlign.end,
-                  style: TextStyle(
-                      fontSize: fontSize,
-                      fontWeight: FontWeight.bold,
-                      color: amberAccent))),
-          Expanded(
-              child: Text(_kFmt(totals.winLoss),
-                  textAlign: TextAlign.end,
-                  style: TextStyle(
-                      fontSize: fontSize,
-                      fontWeight: FontWeight.bold,
-                      color: accentPurple))),
-        ],
+  Widget _scrollList({required List<Widget> children}) {
+    const visibleCards = 3;
+    const cardSlot = 126.0;
+    const listPad = 16.0;
+    if (children.length <= visibleCards) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 8, bottom: 8),
+        child: Column(children: children),
+      );
+    }
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxHeight: cardSlot * visibleCards + listPad),
+      child: ListView(
+        padding: const EdgeInsets.only(top: 8, bottom: 8),
+        children: children,
       ),
     );
   }
@@ -316,93 +313,119 @@ class _MonthlyViewState extends State<MonthlyView> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final games = _games ?? const MonthlyGames.empty();
+    final ongoing = games.ongoing;
+    final settled = _todaySelected ? games.settledToday : games.settledPrevious;
+
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isTablet = constraints.maxWidth > 500;
-        final games = _games ?? const MonthlyGames.empty();
-        final ongoing = games.ongoing;
-        final settled =
-            _todaySelected ? games.settledToday : games.settledPrevious;
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Container(
-              decoration: BoxDecoration(
-                color: cardBg,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: borderColor),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: Column(
-                children: [
-                  _sectionTitleBar(l10n.ongoingGames, isTablet),
-                  if (_loading)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 32),
-                      child: Center(child: CircularProgressIndicator()),
-                    )
-                  else if (ongoing.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 24),
-                      child: Center(
-                        child: Text(l10n.noOngoingGames,
-                            style: TextStyle(color: Colors.grey[500])),
-                      ),
-                    )
-                  else if (isTablet) ...[
-                    _tableHeader(isTablet),
+        return SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minWidth: constraints.maxWidth),
+            child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            color: cardBg,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: borderColor),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              _segmentTrack(children: [
+                _segment(l10n.ongoingGames, selected: true, isFirst: true, isLast: true),
+              ]),
+              if (_loading)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 32),
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              else if (ongoing.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 24),
+                  child: Center(
+                    child: Text(l10n.noOngoingGames,
+                        style: TextStyle(color: Colors.grey[500])),
+                  ),
+                )
+              else
+                _scrollList(
+                  children: [
                     for (var i = 0; i < ongoing.length; i++)
-                      _ongoingRow(_rankOf(i), ongoing[i], isTablet, i.isOdd),
-                  ] else
-                    Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        children: [
-                          for (var i = 0; i < ongoing.length; i++)
-                            _ongoingCardMobile(_rankOf(i), ongoing[i]),
-                        ],
+                      _gameCard(
+                        rank: _rankOf(i),
+                        title: _splitAccount(ongoing[i].account).$1,
+                        code: _splitAccount(ongoing[i].account).$2,
+                        row: ongoing[i],
                       ),
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-            Container(
-              decoration: BoxDecoration(
-                color: cardBg,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: borderColor),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: Column(
-                children: [
-                  _sectionTitleBar(
-                    l10n.settledGameLabel,
-                    isTablet,
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _toggleButton(l10n.todayLabel, _todaySelected,
-                            isTablet, () => setState(() => _todaySelected = true)),
-                        const SizedBox(width: 8),
-                        _toggleButton(l10n.yesterdayLabel, !_todaySelected,
-                            isTablet, () => setState(() => _todaySelected = false)),
-                      ],
+                  ],
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+        Container(
+          decoration: BoxDecoration(
+            color: cardBg,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: borderColor),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    l10n.settledGameLabel.toUpperCase(),
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 1.2,
+                      color: Colors.white.withValues(alpha: 0.4),
                     ),
                   ),
-                  _tableHeader(isTablet, showGuest: false),
-                  if (_loading)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 24),
-                      child: Center(child: CircularProgressIndicator()),
-                    )
-                  else
-                    _settledRow(settled, isTablet),
-                ],
+                ),
               ),
+              _segmentTrack(children: [
+                _segment(
+                  l10n.todayLabel,
+                  selected: _todaySelected,
+                  isFirst: true,
+                  onTap: () => setState(() => _todaySelected = true),
+                ),
+                _segment(
+                  l10n.yesterdayLabel,
+                  selected: !_todaySelected,
+                  isLast: true,
+                  onTap: () => setState(() => _todaySelected = false),
+                ),
+              ]),
+              if (_loading)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              else
+                _scrollList(
+                  children: [
+                    _gameCard(
+                      rank: _rankOf(settled.gameCount),
+                      title: '${settled.gameCount} ${l10n.settledGameLabel}',
+                      row: null,
+                      totals: settled,
+                    ),
+                  ],
+                ),
+            ],
+          ),
+        ),
+      ],
             ),
-          ],
+          ),
         );
       },
     );

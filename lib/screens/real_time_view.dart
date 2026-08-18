@@ -10,8 +10,8 @@ import '../models/monthly_statistics.dart';
 import '../services/dashboard_summary_service.dart';
 import '../services/monthly_statistics_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/fold_layout.dart';
 import '../widgets/skeleton_box.dart';
-import '../widgets/stat_card.dart';
 
 final _fmt =
     NumberFormat.currency(locale: 'en_PH', symbol: '₱', decimalDigits: 0);
@@ -85,10 +85,11 @@ class _RealTimeViewState extends State<RealTimeView> {
 
   Widget _buildHighlightCard() {
     final l10n = AppLocalizations.of(context);
+    final folded = FoldLayout.isFoldedCover(context);
     return Container(
-      padding: const EdgeInsets.all(26),
+      padding: EdgeInsets.fromLTRB(folded ? 12 : 16, folded ? 10 : 12, folded ? 12 : 16, folded ? 10 : 12),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: emeraldAccent.withValues(alpha: 0.35)),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -100,97 +101,101 @@ class _RealTimeViewState extends State<RealTimeView> {
         ),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
               Container(
-                width: 36,
-                height: 36,
+                width: 32,
+                height: 32,
                 decoration: BoxDecoration(
                     color: emeraldAccent.withValues(alpha: 0.25),
-                    shape: BoxShape.circle),
+                    borderRadius: BorderRadius.circular(10)),
                 child: Icon(Icons.trending_up, size: 18, color: emeraldAccent),
               ),
               const Spacer(),
               Material(
-                color: surfaceDarkStart.withValues(alpha: 0.6),
+                color: Colors.white.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(20),
                 child: InkWell(
                   onTap: _showStatisticsDialog,
                   borderRadius: BorderRadius.circular(20),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 18, vertical: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     child: Text(l10n.statisticsLabel,
                         style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600)),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700)),
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 22),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              // Wider (tablet) card: push the pair further apart. Narrow (mobile): keep it tight so text doesn't overflow.
-              final dividerMargin =
-                  ((constraints.maxWidth - 260) * 0.3).clamp(20.0, 90.0);
-              return Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Text(l10n.winLossLabel,
-                          style: const TextStyle(
-                              fontSize: 20,
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 6),
-                      _amountText(_summary?.winLoss,
-                          fontSize: 24, color: Colors.white),
-                    ],
-                  ),
-                  Container(
-                    width: 1,
-                    height: 44,
-                    margin: EdgeInsets.symmetric(horizontal: dividerMargin),
-                    color: Colors.white.withValues(alpha: 0.15),
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Text(l10n.ngrLabel,
-                          style: const TextStyle(
-                              fontSize: 20,
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 6),
-                      _amountText(_summary?.ngr,
-                          fontSize: 24, color: Colors.white),
-                    ],
-                  ),
-                ],
-              );
-            },
+          SizedBox(height: folded ? 10 : 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: _metricBlock(l10n.winLossLabel, _summary?.winLoss)),
+              Container(
+                width: 1,
+                height: folded ? 44 : 52,
+                margin: const EdgeInsets.symmetric(horizontal: 12),
+                color: Colors.white.withValues(alpha: 0.12),
+              ),
+              Expanded(child: _metricBlock(l10n.ngrLabel, _summary?.ngr)),
+            ],
           ),
         ],
       ),
     );
   }
 
+  Color _signedAmountColor(int? value) {
+    if (value == null || value == 0) return Colors.white;
+    return value > 0 ? emeraldAccent : roseAccent;
+  }
+
+  Widget _metricBlock(String label, int? value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label.toUpperCase(),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 10,
+            color: Colors.white.withValues(alpha: 0.7),
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.6,
+          ),
+        ),
+        const SizedBox(height: 6),
+        _amountText(
+          _summary == null ? null : value,
+          fontSize: FoldLayout.isFoldedCover(context) ? 16 : 20,
+          color: _signedAmountColor(value),
+        ),
+      ],
+    );
+  }
+
   Widget _amountText(int? value,
-      {required double fontSize, required Color color}) {
+      {required double fontSize,
+      required Color color,
+      Alignment alignment = Alignment.centerLeft}) {
     if (_loadingSummary || value == null) {
       return SkeletonBox(width: fontSize * 4, height: fontSize * 1.1);
     }
-    return Text(_fmt.format(value),
-        style: TextStyle(
-            fontSize: fontSize, fontWeight: FontWeight.bold, color: color));
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: alignment,
+      child: Text(_fmt.format(value),
+          maxLines: 1,
+          style: TextStyle(
+              fontSize: fontSize, fontWeight: FontWeight.bold, color: color)),
+    );
   }
 
   Widget _wideStatCard(
@@ -198,108 +203,118 @@ class _RealTimeViewState extends State<RealTimeView> {
       required Color color,
       required String label,
       required int? value}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 22),
-      decoration: BoxDecoration(
-        color: cardBg,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: borderColor),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 46,
-            height: 46,
-            decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(12)),
-            child: Icon(icon, size: 22, color: color),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final h = constraints.maxHeight;
+        final tight = h.isFinite && h < 88;
+        final veryTight = h.isFinite && h < 72;
+        final padV = veryTight ? 4.0 : (tight ? 6.0 : 10.0);
+        final padH = FoldLayout.isFoldedCover(context) ? 12.0 : 16.0;
+        final iconBox = veryTight ? 26.0 : (tight ? 32.0 : 40.0);
+        final iconSize = veryTight ? 14.0 : (tight ? 16.0 : 20.0);
+        final labelSize = veryTight ? 11.0 : (tight ? 12.0 : 14.0);
+        final amountSize = veryTight ? 13.0 : (tight ? 14.0 : 16.0);
+        return Container(
+          padding: EdgeInsets.symmetric(horizontal: padH, vertical: padV),
+          decoration: BoxDecoration(
+            color: cardBg,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: borderColor),
           ),
-          const SizedBox(width: 14),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
             children: [
-              Text(label,
-                  style: const TextStyle(
-                      fontSize: 16,
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold)),
-              const SizedBox(height: 4),
-              _amountText(value, fontSize: 19, color: Colors.white),
+              Container(
+                width: iconBox,
+                height: iconBox,
+                decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(10)),
+                child: Icon(icon, size: iconSize, color: color),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontSize: labelSize,
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            height: 1.1)),
+                    SizedBox(height: veryTight ? 2 : 4),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: _amountText(value,
+                          fontSize: amountSize, color: Colors.white),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final cards = [
+      _wideStatCard(
+          icon: Icons.account_balance_wallet,
+          color: amberAccent,
+          label: l10n.totalCommissionLabel,
+          value: _summary?.totalCommission),
+      _wideStatCard(
+          icon: Icons.casino,
+          color: tealAccent,
+          label: l10n.gameCommissionLabel,
+          value: _summary?.gameCommission),
+      _wideStatCard(
+          icon: Icons.layers,
+          color: accentPurple,
+          label: l10n.additionalCommissionLabel,
+          value: _summary?.additionalCommission),
+      _wideStatCard(
+          icon: Icons.shield,
+          color: roseAccent,
+          label: l10n.accumulatedExpenses,
+          value: _summary?.expenses),
+      _wideStatCard(
+          icon: Icons.videogame_asset,
+          color: primaryIndigo,
+          label: l10n.cageRollingLabel,
+          value: _summary?.cageRolling),
+      _wideStatCard(
+          icon: Icons.casino,
+          color: primaryIndigo,
+          label: l10n.casinoRollingLabel,
+          value: _summary?.casinoRolling),
+    ];
+
+    Widget fill(List<Widget> items) {
+      return Column(
+        children: [
+          for (var i = 0; i < items.length; i++) ...[
+            if (i > 0) const SizedBox(height: 6),
+            Expanded(child: ClipRect(child: items[i])),
+          ],
+        ],
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _buildHighlightCard(),
-        const SizedBox(height: 18),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            return GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 3,
-              mainAxisSpacing: 14,
-              crossAxisSpacing: 14,
-              childAspectRatio: 0.95,
-              children: [
-                StatCard(
-                  label: l10n.totalCommissionLabel,
-                  value: '',
-                  valueWidget: _amountText(_summary?.totalCommission,
-                      fontSize: 24, color: Colors.white),
-                  icon: Icons.account_balance_wallet,
-                  color: StatCardColor.amber,
-                  centered: true,
-                ),
-                StatCard(
-                  label: l10n.gameCommissionLabel,
-                  value: '',
-                  valueWidget: _amountText(_summary?.gameCommission,
-                      fontSize: 24, color: Colors.white),
-                  icon: Icons.casino,
-                  color: StatCardColor.teal,
-                  centered: true,
-                ),
-                StatCard(
-                  label: l10n.additionalCommissionLabel,
-                  value: '',
-                  valueWidget: _amountText(_summary?.additionalCommission,
-                      fontSize: 24, color: Colors.white),
-                  icon: Icons.layers,
-                  color: StatCardColor.purple,
-                  centered: true,
-                ),
-              ],
-            );
-          },
-        ),
-        const SizedBox(height: 14),
-        _wideStatCard(
-            icon: Icons.shield,
-            color: roseAccent,
-            label: l10n.accumulatedExpenses,
-            value: _summary?.expenses),
-        const SizedBox(height: 14),
-        _wideStatCard(
-            icon: Icons.videogame_asset,
-            color: primaryIndigo,
-            label: l10n.cageRollingLabel,
-            value: _summary?.cageRolling),
-        const SizedBox(height: 14),
-        _wideStatCard(
-            icon: Icons.casino,
-            color: primaryIndigo,
-            label: l10n.casinoRollingLabel,
-            value: _summary?.casinoRolling),
+        const SizedBox(height: 8),
+        Expanded(child: fill(cards)),
       ],
     );
   }
@@ -331,43 +346,78 @@ class _StatisticsDialogState extends State<_StatisticsDialog> {
     });
   }
 
-  static const _monthColumnWidth = 34.0;
+  static const _monthColumnWidth = 32.0;
 
-  Widget _headerCell(String text) => Expanded(
-        child: Text(text,
+  String _compactAmount(int value) {
+    if (value == 0) return '0';
+    final sign = value < 0 ? '-' : '';
+    final abs = value.abs();
+    if (abs >= 1000000) {
+      final m = abs / 1000000;
+      final body = m >= 10 ? m.round().toString() : m.toStringAsFixed(1);
+      return '$sign${body}M';
+    }
+    if (abs >= 1000) {
+      final k = abs / 1000;
+      final body = k >= 10 ? k.round().toString() : k.toStringAsFixed(1);
+      return '$sign${body}K';
+    }
+    return NumberFormat.decimalPattern().format(value);
+  }
+
+  Widget _headerCell(String text, {required bool compact}) => Expanded(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 2),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerRight,
+            child: Text(
+              text,
+              maxLines: 1,
+              softWrap: false,
+              textAlign: TextAlign.end,
+              style: TextStyle(
+                fontSize: compact ? 9 : 11,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[400],
+              ),
+            ),
+          ),
+        ),
+      );
+
+  Widget _monthCell(String month, {required bool compact}) => SizedBox(
+        width: _monthColumnWidth,
+        child: Text(
+          month,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+              fontSize: compact ? 11 : 12,
+              fontWeight: FontWeight.bold,
+              color: Colors.white),
+        ),
+      );
+
+  Widget _valueCell(int value, Color color, {required bool compact}) {
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerRight,
+          child: Text(
+            _compactAmount(value),
+            maxLines: 1,
+            softWrap: false,
             textAlign: TextAlign.end,
             style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey[400])),
-      );
-
-  Widget _monthCell(String month) => SizedBox(
-        width: _monthColumnWidth,
-        child: Text(month,
-            style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: Colors.white)),
-      );
-
-  Widget _valueCell(int value, Color color) {
-    String text;
-    if (value == 0) {
-      text = '0';
-    } else if (value.abs() < 1000) {
-      // Small non-zero amounts (e.g. ₱450) would round to "0K" and look identical to an
-      // actually-zero month — show the exact figure instead of abbreviating.
-      text = NumberFormat.decimalPattern().format(value);
-    } else {
-      text = '${NumberFormat.decimalPattern().format((value / 1000).round())}K';
-    }
-    return Expanded(
-      child: Text(
-        text,
-        textAlign: TextAlign.end,
-        style:
-            TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: color),
+              fontSize: compact ? 10 : 12,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -376,37 +426,66 @@ class _StatisticsDialogState extends State<_StatisticsDialog> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final locale = AppLocaleScope.of(context).locale;
+    final compact = FoldLayout.isFoldedCover(context);
     final year = locale?.languageCode == 'en'
         ? '${DateTime.now().year}'
         : '${DateTime.now().year}년';
     final months = _stats?.months ?? const [];
+    final rowGap = compact ? 8.0 : 14.0;
     return Dialog(
       backgroundColor: surfaceDarkMid,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: compact ? 10 : 16,
+        vertical: 24,
+      ),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+        padding: EdgeInsets.fromLTRB(compact ? 10 : 20, 16, compact ? 10 : 20, 12),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(year,
-                style: const TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white)),
-            const SizedBox(height: 18),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(year,
+                      style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white)),
+                ),
+                IconButton(
+                  tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.close, color: Colors.white70, size: 22),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
             Row(
               children: [
                 const SizedBox(width: _monthColumnWidth),
-                _headerCell(l10n.winLossLabel),
-                _headerCell(l10n.shareLabel),
-                _headerCell(l10n.commissionLabel),
-                _headerCell(l10n.expensesLabel),
-                _headerCell(l10n.ngrLabel),
+                _headerCell(
+                    compact && locale?.languageCode == 'en'
+                        ? 'W/L'
+                        : l10n.winLossLabel,
+                    compact: compact),
+                _headerCell(l10n.shareLabel, compact: compact),
+                _headerCell(
+                    compact && locale?.languageCode == 'en'
+                        ? 'Comm'
+                        : l10n.commissionLabel,
+                    compact: compact),
+                _headerCell(
+                    compact && locale?.languageCode == 'en'
+                        ? 'Exp'
+                        : l10n.expensesLabel,
+                    compact: compact),
+                _headerCell(l10n.ngrLabel, compact: compact),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             const Divider(height: 1, color: Colors.white12),
             if (_loading)
               const Padding(
@@ -423,18 +502,18 @@ class _StatisticsDialogState extends State<_StatisticsDialog> {
               )
             else
               for (final s in months) ...[
-                const SizedBox(height: 14),
+                SizedBox(height: rowGap),
                 Row(
                   children: [
-                    _monthCell(_monthLabel(s.monthKey, locale)),
-                    _valueCell(s.winLoss, amberAccent),
-                    _valueCell(s.share, roseAccent),
-                    _valueCell(s.commission, roseAccent),
-                    _valueCell(s.expenses, amberAccent),
-                    _valueCell(s.ngr, Colors.white),
+                    _monthCell(_monthLabel(s.monthKey, locale), compact: compact),
+                    _valueCell(s.winLoss, amberAccent, compact: compact),
+                    _valueCell(s.share, roseAccent, compact: compact),
+                    _valueCell(s.commission, roseAccent, compact: compact),
+                    _valueCell(s.expenses, amberAccent, compact: compact),
+                    _valueCell(s.ngr, Colors.white, compact: compact),
                   ],
                 ),
-                const SizedBox(height: 14),
+                SizedBox(height: rowGap),
                 const Divider(height: 1, color: Colors.white12),
               ],
             const SizedBox(height: 4),
@@ -448,3 +527,4 @@ class _StatisticsDialogState extends State<_StatisticsDialog> {
     );
   }
 }
+
